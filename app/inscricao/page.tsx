@@ -6,6 +6,7 @@ import { supabase } from "../lib/supabase";
 export default function InscricaoPage() {
   const [carregando, setCarregando] = useState(false);
   const [idade, setIdade] = useState("");
+  const [congrega, setCongrega] = useState("");
   const [mensagem, setMensagem] = useState("");
 
   function pegarExtensao(arquivo: File) {
@@ -24,13 +25,13 @@ export default function InscricaoPage() {
   ) {
     const extensao = pegarExtensao(arquivo);
 
-    const nomeSeguro = `arquivo-${Date.now()}-${Math.floor(
+    const nomeArquivo = `arquivo-${Date.now()}-${Math.floor(
       Math.random() * 999999
     )}.${extensao}`;
 
     const { error } = await supabase.storage
       .from(bucket)
-      .upload(nomeSeguro, arquivo, {
+      .upload(nomeArquivo, arquivo, {
         cacheControl: "3600",
         upsert: false,
         contentType: arquivo.type,
@@ -38,11 +39,10 @@ export default function InscricaoPage() {
 
     if (error) {
       console.error("Erro completo do upload:", error);
-
       throw new Error(`${mensagemErro}: ${error.message}`);
     }
 
-    const { data } = supabase.storage.from(bucket).getPublicUrl(nomeSeguro);
+    const { data } = supabase.storage.from(bucket).getPublicUrl(nomeArquivo);
 
     return data.publicUrl;
   }
@@ -58,6 +58,7 @@ export default function InscricaoPage() {
       const dados = new FormData(form);
 
       const idadeNumero = Number(dados.get("idade"));
+
       const camposObrigatorios = [
         { nome: "nome", label: "Nome completo" },
         { nome: "cpf", label: "CPF" },
@@ -65,29 +66,46 @@ export default function InscricaoPage() {
         { nome: "email", label: "E-mail" },
         { nome: "endereco", label: "Endereço" },
         { nome: "idade", label: "Idade" },
-        { nome: "igreja", label: "Igreja" },
+        { nome: "congrega", label: "Congrega em alguma igreja?" },
         { nome: "camisa", label: "Tamanho da camisa" },
         { nome: "alergias", label: "Alergias" },
         { nome: "medicamentos", label: "Medicamentos" },
         { nome: "condicao_saude", label: "Condição de saúde" },
         { nome: "restricao_alimentar", label: "Restrição alimentar" },
-        { nome: "contato_emergencia_nome", label: "Nome do contato de emergência" },
-        { nome: "contato_emergencia_telefone", label: "Telefone do contato de emergência" },
+        {
+          nome: "contato_emergencia_nome",
+          label: "Nome do contato de emergência",
+        },
+        {
+          nome: "contato_emergencia_telefone",
+          label: "Telefone do contato de emergência",
+        },
       ];
-      
+
       for (const campo of camposObrigatorios) {
         const valor = String(dados.get(campo.nome) || "").trim();
-      
+
         if (!valor) {
           alert(`Preencha o campo obrigatório: ${campo.label}`);
           setCarregando(false);
           return;
         }
       }
+
       if (!idadeNumero || idadeNumero <= 0) {
         alert("Informe uma idade válida.");
         setCarregando(false);
         return;
+      }
+
+      if (String(dados.get("congrega")) === "sim") {
+        const igrejaInformada = String(dados.get("igreja") || "").trim();
+
+        if (!igrejaInformada) {
+          alert("Informe qual igreja você congrega.");
+          setCarregando(false);
+          return;
+        }
       }
 
       const foto = dados.get("foto") as File;
@@ -143,7 +161,12 @@ export default function InscricaoPage() {
         email: String(dados.get("email")),
         endereco: String(dados.get("endereco")),
         idade: String(dados.get("idade")),
-        igreja: String(dados.get("igreja")),
+
+        igreja:
+          String(dados.get("congrega")) === "sim"
+            ? String(dados.get("igreja"))
+            : "Não congrega",
+
         camisa: String(dados.get("camisa")),
 
         alergias: String(dados.get("alergias")),
@@ -180,6 +203,7 @@ export default function InscricaoPage() {
 
       form.reset();
       setIdade("");
+      setCongrega("");
     } catch (error) {
       console.error(error);
       setCarregando(false);
@@ -197,17 +221,25 @@ export default function InscricaoPage() {
   return (
     <main className="min-h-screen bg-[#0F0F10] text-white px-6 py-20">
       <section className="max-w-3xl mx-auto">
-        <div className="mb-12 text-center">
-          <img
-            src="/logo-forjados.png"
-            alt="Logo FORJADOS"
-            className="mx-auto w-full max-w-[320px] mb-6"
-          />
+      <div className="mb-12">
+  <div className="text-left mb-6">
+    <span className="inline-block border border-[#C79A4A] text-[#C79A4A] px-4 py-2 rounded-full uppercase tracking-widest text-sm">
+      FICHA DE INSCRIÇÃO
+    </span>
+  </div>
 
-          <p className="text-gray-400 text-lg">
-            Preencha seus dados para garantir sua inscrição.
-          </p>
-        </div>
+  <div className="text-center">
+    <img
+      src="/logo-forjados.png"
+      alt="Logo FORJADOS"
+      className="mx-auto w-full max-w-[320px] mb-6"
+    />
+
+    <p className="text-gray-400 text-lg">
+      Preencha seus dados para garantir sua inscrição.
+    </p>
+  </div>
+</div>
 
         {mensagem && (
           <div className="mb-6 bg-[#181818] border border-[#C79A4A] rounded-2xl p-4 text-center text-[#C79A4A] font-bold">
@@ -217,7 +249,7 @@ export default function InscricaoPage() {
 
         <form
           onSubmit={enviarFormulario}
-          className="bg-[#181818] border border-[#2A2A2A] rounded-[32px] p-8 space-y-8"
+          className="bg-[#181818] border border-[#2A2A2A] rounded-[32px] p-5 sm:p-8 space-y-8"
         >
           <div className="space-y-4">
             <h2 className="text-2xl font-black text-[#C79A4A]">
@@ -282,24 +314,50 @@ export default function InscricaoPage() {
               className="w-full bg-[#0F0F10] border border-[#2A2A2A] rounded-2xl px-5 py-4 outline-none focus:border-[#C79A4A]"
             />
 
-            <div className="grid md:grid-cols-2 gap-4">
-              <input
-                name="idade"
-                required
-                type="number"
-                placeholder="Idade"
-                value={idade}
-                onChange={(e) => setIdade(e.target.value)}
-                className="w-full bg-[#0F0F10] border border-[#2A2A2A] rounded-2xl px-5 py-4 outline-none focus:border-[#C79A4A]"
-              />
+            <input
+              name="idade"
+              required
+              type="number"
+              placeholder="Idade"
+              value={idade}
+              onChange={(e) => setIdade(e.target.value)}
+              className="w-full bg-[#0F0F10] border border-[#2A2A2A] rounded-2xl px-5 py-4 outline-none focus:border-[#C79A4A]"
+            />
 
-              <input
-                name="igreja"
-                required
-                type="text"
-                placeholder="Congrega em alguma igreja? Se sim, qual?"
-                className="w-full bg-[#0F0F10] border border-[#2A2A2A] rounded-2xl px-5 py-4 outline-none focus:border-[#C79A4A]"
-              />
+            <div className="space-y-4">
+              <div>
+                <label className="block text-gray-400 mb-2">
+                  Congrega em alguma igreja?
+                </label>
+
+                <select
+                  name="congrega"
+                  required
+                  value={congrega}
+                  onChange={(e) => setCongrega(e.target.value)}
+                  className="w-full bg-[#0F0F10] border border-[#2A2A2A] rounded-2xl px-5 py-4 outline-none focus:border-[#C79A4A]"
+                >
+                  <option value="">Selecione uma opção</option>
+                  <option value="sim">Sim</option>
+                  <option value="nao">Não</option>
+                </select>
+              </div>
+
+              {congrega === "sim" && (
+                <div>
+                  <label className="block text-gray-400 mb-2">
+                    Qual igreja?
+                  </label>
+
+                  <input
+                    name="igreja"
+                    required
+                    type="text"
+                    placeholder="Digite o nome da igreja"
+                    className="w-full bg-[#0F0F10] border border-[#2A2A2A] rounded-2xl px-5 py-4 outline-none focus:border-[#C79A4A]"
+                  />
+                </div>
+              )}
             </div>
 
             {Number(idade) > 0 && Number(idade) < 18 && (
@@ -402,7 +460,7 @@ export default function InscricaoPage() {
                 required
                 type="text"
                 placeholder="Nome do contato de emergência"
-                className="w-full bg-[#0F0F10] border border-[#2A2A2A] rounded-2xl px-5 py-4 outline-none focus:border-[#C79A4A]"
+                className="w-full bg-[#0F0F10] border border-[#2A2A2A] rounded-2xl px-5 py-5 text-sm sm:text-base outline-none focus:border-[#C79A4A]"
               />
 
               <input
@@ -410,18 +468,32 @@ export default function InscricaoPage() {
                 required
                 type="text"
                 placeholder="Telefone do contato de emergência"
-                className="w-full bg-[#0F0F10] border border-[#2A2A2A] rounded-2xl px-5 py-4 outline-none focus:border-[#C79A4A]"
+                className="w-full bg-[#0F0F10] border border-[#2A2A2A] rounded-2xl px-5 py-5 text-sm sm:text-base outline-none focus:border-[#C79A4A]"
               />
             </div>
           </div>
 
           <div className="bg-black/40 border border-[#2A2A2A] rounded-2xl p-6">
-            <p className="text-gray-400 mb-2">Valor da inscrição</p>
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <p className="text-gray-400">Valor da pré-venda</p>
 
-            <h3 className="text-5xl font-black text-[#C79A4A]">R$180</h3>
+              <span className="bg-[#B71C1C] text-white text-xs font-black px-3 py-1 rounded-full">
+                25% OFF
+              </span>
+            </div>
 
-            <p className="text-gray-500 mt-2">
-              Pagamento via Pix. Anexe o comprovante abaixo.
+            <div className="flex items-end gap-3">
+              <span className="text-gray-500 text-2xl font-black line-through">
+                R$180
+              </span>
+
+              <h3 className="text-5xl font-black text-[#C79A4A] leading-none">
+                R$135
+              </h3>
+            </div>
+
+            <p className="text-gray-500 mt-3">
+              Valor de pré-venda com 25% de desconto. Pagamento via Pix. Anexe o comprovante abaixo.
             </p>
           </div>
 
