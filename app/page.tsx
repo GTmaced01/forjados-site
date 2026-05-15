@@ -10,7 +10,7 @@ export default function Home() {
         <div className="absolute top-20 left-10 w-40 h-40 bg-[#B71C1C]/20 blur-3xl rounded-full" />
         <div className="absolute bottom-20 right-10 w-56 h-56 bg-[#C79A4A]/10 blur-3xl rounded-full" />
 
-        <div className="relative z-10 max-w-6xl mx-auto grid lg:grid-cols-2 gap-14 lg:gap-20 items-center">
+        <div className="relative z-10 max-w-6xl mx-auto grid lg:grid-cols-2 gap-14 lg:gap-20 items-center animate-fade-up">
           {/* TEXTO */}
           <div>
             <span className="inline-block border border-[#C79A4A] text-[#C79A4A] px-4 py-2 rounded-full uppercase tracking-widest text-sm mb-6">
@@ -50,7 +50,7 @@ export default function Home() {
           <div className="relative">
             <div className="absolute w-96 h-96 bg-red-700/20 blur-3xl rounded-full" />
 
-            <div className="relative bg-[#181818]/95 border border-[#2A2A2A] rounded-[32px] p-5 sm:p-8 shadow-2xl">
+            <div className="relative bg-[#181818]/95 border border-[#2A2A2A] rounded-[32px] p-5 sm:p-8 shadow-2xl animate-pulse-glow">
               <h2 className="text-3xl sm:text-4xl font-black uppercase mb-4 leading-tight">
                 Inscrições abertas
               </h2>

@@ -26,7 +26,8 @@ type Inscrito = {
   autorizacao_menor_url: string;
 
   pagamento_status: string;
-  created_at: string;
+observacao_admin: string;
+created_at: string;
 };
 
 type FiltroStatus = "todos" | "pendente" | "pago" | "cancelado" | "menores";
@@ -37,11 +38,13 @@ export default function AdminPage() {
   const [mensagemLogin, setMensagemLogin] = useState("");
   const [logado, setLogado] = useState(false);
   const [carregando, setCarregando] = useState(false);
+  const [carregandoInscritos, setCarregandoInscritos] = useState(false);
   const [inscritos, setInscritos] = useState<Inscrito[]>([]);
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState<FiltroStatus>("todos");
   const [selecionado, setSelecionado] = useState<Inscrito | null>(null);
   const [menuExportarAberto, setMenuExportarAberto] = useState(false);
+  const [confirmarLogout, setConfirmarLogout] = useState(false);
 
   async function verificarSessao() {
     const { data } = await supabase.auth.getSession();
@@ -101,23 +104,30 @@ export default function AdminPage() {
 
   async function sair() {
     await supabase.auth.signOut();
+  
+    setConfirmarLogout(false);
     setLogado(false);
     setInscritos([]);
     setEmail("");
     setSenha("");
+    setMensagemLogin("");
   }
 
   async function carregarInscritos() {
+    setCarregandoInscritos(true);
+  
     const { data, error } = await supabase
       .from("inscritos")
       .select("*")
       .order("created_at", { ascending: false });
-
+  
+    setCarregandoInscritos(false);
+  
     if (error) {
       alert("Erro ao carregar inscritos: " + error.message);
       return;
     }
-
+  
     setInscritos(data || []);
   }
 
@@ -130,6 +140,32 @@ export default function AdminPage() {
     if (error) {
       alert("Erro ao alterar status: " + error.message);
       return;
+    }
+    async function salvarObservacaoAdmin(id: string, observacao: string) {
+      const { error } = await supabase
+        .from("inscritos")
+        .update({ observacao_admin: observacao })
+        .eq("id", id);
+    
+      if (error) {
+        alert("Erro ao salvar observação: " + error.message);
+        return false;
+      }
+    
+      setInscritos((lista) =>
+        lista.map((item) =>
+          item.id === id ? { ...item, observacao_admin: observacao } : item
+        )
+      );
+    
+      if (selecionado?.id === id) {
+        setSelecionado({
+          ...selecionado,
+          observacao_admin: observacao,
+        });
+      }
+    
+      return true;
     }
 
     setInscritos((lista) =>
@@ -144,6 +180,32 @@ export default function AdminPage() {
         pagamento_status: novoStatus,
       });
     }
+  }
+  async function salvarObservacaoAdmin(id: string, observacao: string) {
+    const { error } = await supabase
+      .from("inscritos")
+      .update({ observacao_admin: observacao })
+      .eq("id", id);
+  
+    if (error) {
+      alert("Erro ao salvar observação: " + error.message);
+      return false;
+    }
+  
+    setInscritos((lista) =>
+      lista.map((item) =>
+        item.id === id ? { ...item, observacao_admin: observacao } : item
+      )
+    );
+  
+    if (selecionado?.id === id) {
+      setSelecionado({
+        ...selecionado,
+        observacao_admin: observacao,
+      });
+    }
+  
+    return true;
   }
 
   function formatarData(data: string) {
@@ -262,7 +324,8 @@ export default function AdminPage() {
       "Contato emergencia nome",
       "Contato emergencia telefone",
       "Status",
-      "Foto",
+"Observacao interna",
+"Foto",
       "Comprovante",
       "Autorizacao menor",
       "Data",
@@ -284,7 +347,8 @@ export default function AdminPage() {
       item.contato_emergencia_nome,
       item.contato_emergencia_telefone,
       textoStatus(item.pagamento_status),
-      item.foto_url,
+item.observacao_admin,
+item.foto_url,
       item.comprovante_url,
       item.autorizacao_menor_url,
       formatarData(item.created_at),
@@ -420,12 +484,17 @@ export default function AdminPage() {
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3 relative z-[9999]">
-              <button
-                onClick={carregarInscritos}
-                className="bg-black/40 border border-[#2A2A2A] hover:border-[#C79A4A] px-5 py-3 rounded-2xl font-bold transition-all"
-              >
-                Atualizar
-              </button>
+            <button
+  onClick={carregarInscritos}
+  disabled={carregandoInscritos}
+  className="bg-black/40 border border-[#2A2A2A] hover:border-[#C79A4A] px-5 py-3 rounded-2xl font-bold transition-all disabled:opacity-60 flex items-center justify-center gap-2"
+>
+  {carregandoInscritos && (
+    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+  )}
+
+  {carregandoInscritos ? "Atualizando..." : "Atualizar"}
+</button>
 
               <div className="relative">
                 <button
@@ -499,11 +568,11 @@ export default function AdminPage() {
               </div>
 
               <button
-                onClick={sair}
-                className="bg-[#B71C1C] hover:bg-red-800 px-5 py-3 rounded-2xl font-black transition-all"
-              >
-                Sair
-              </button>
+  onClick={() => setConfirmarLogout(true)}
+  className="bg-[#B71C1C] hover:bg-red-800 px-5 py-3 rounded-2xl font-black transition-all"
+>
+  Encerrar sessão
+</button>
             </div>
           </div>
         </div>
@@ -602,7 +671,12 @@ export default function AdminPage() {
             </p>
           </div>
         </div>
-
+        {carregandoInscritos && (
+  <div className="mb-6 bg-[#121212] border border-[#C79A4A]/40 rounded-2xl p-4 text-[#C79A4A] font-bold flex items-center gap-3 animate-fade-in">
+    <span className="w-5 h-5 border-4 border-[#C79A4A]/30 border-t-[#C79A4A] rounded-full animate-spin" />
+    Carregando inscrições...
+  </div>
+)}
         <div className="bg-[#121212] border border-[#2A2A2A] rounded-[28px] overflow-hidden shadow-2xl">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -766,14 +840,48 @@ export default function AdminPage() {
 
       {selecionado && (
         <FichaCompleta
-          item={selecionado}
-          fechar={() => setSelecionado(null)}
-          alterarStatus={alterarStatus}
-          abrirWhatsApp={abrirWhatsApp}
-          classeStatus={classeStatus}
-          formatarData={formatarData}
-        />
+        item={selecionado}
+        fechar={() => setSelecionado(null)}
+        alterarStatus={alterarStatus}
+        salvarObservacaoAdmin={salvarObservacaoAdmin}
+        abrirWhatsApp={abrirWhatsApp}
+        classeStatus={classeStatus}
+        formatarData={formatarData}
+      />
       )}
+      {confirmarLogout && (
+  <div className="fixed inset-0 bg-black/80 z-[99999] flex items-center justify-center px-4 backdrop-blur-sm">
+    <div className="w-full max-w-md bg-[#121212] border border-[#2A2A2A] rounded-[32px] p-8 shadow-2xl text-center animate-fade-up">
+      <div className="w-16 h-16 mx-auto rounded-full bg-[#B71C1C]/15 border border-[#B71C1C]/40 flex items-center justify-center mb-5">
+        <span className="text-3xl">⚠️</span>
+      </div>
+
+      <h2 className="text-3xl font-black text-white mb-3">
+        Encerrar sessão?
+      </h2>
+
+      <p className="text-gray-400 leading-relaxed mb-8">
+        Você será desconectado do painel administrativo do FORJADOS.
+      </p>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <button
+          onClick={() => setConfirmarLogout(false)}
+          className="bg-[#0B0B0B] border border-[#2A2A2A] hover:border-[#C79A4A] text-white px-5 py-4 rounded-2xl font-black transition-all"
+        >
+          Cancelar
+        </button>
+
+        <button
+          onClick={sair}
+          className="bg-[#B71C1C] hover:bg-red-800 text-white px-5 py-4 rounded-2xl font-black transition-all"
+        >
+          Encerrar
+        </button>
+      </div>
+    </div>
+  </div>
+)}
     </main>
   );
 }
@@ -782,6 +890,7 @@ function FichaCompleta({
   item,
   fechar,
   alterarStatus,
+  salvarObservacaoAdmin,
   abrirWhatsApp,
   classeStatus,
   formatarData,
@@ -789,11 +898,26 @@ function FichaCompleta({
   item: Inscrito;
   fechar: () => void;
   alterarStatus: (id: string, novoStatus: string) => void;
+  salvarObservacaoAdmin: (id: string, observacao: string) => Promise<boolean>;
   abrirWhatsApp: (item: Inscrito) => void;
   classeStatus: (status: string) => string;
   formatarData: (data: string) => string;
 }) {
   const ehMenor = Number(item.idade) < 18;
+  const [observacao, setObservacao] = useState(item.observacao_admin || "");
+const [salvandoObservacao, setSalvandoObservacao] = useState(false);
+
+async function salvarObservacao() {
+  setSalvandoObservacao(true);
+
+  const sucesso = await salvarObservacaoAdmin(item.id, observacao);
+
+  setSalvandoObservacao(false);
+
+  if (sucesso) {
+    alert("Observação salva com sucesso!");
+  }
+}
 
   return (
     <div className="fixed inset-0 bg-black/85 z-50 flex items-center justify-center px-4 sm:px-6 backdrop-blur-sm">
@@ -932,6 +1056,30 @@ function FichaCompleta({
                 valor={item.contato_emergencia_telefone}
               />
             </Secao>
+            <div className="bg-[#090909] border border-[#2A2A2A] rounded-[28px] p-5">
+  <h3 className="text-2xl font-black text-[#C79A4A] mb-3">
+    Observação interna
+  </h3>
+
+  <p className="text-gray-500 text-sm mb-4">
+    Anotações visíveis apenas para a organização. O participante não vê esta informação.
+  </p>
+
+  <textarea
+    value={observacao}
+    onChange={(e) => setObservacao(e.target.value)}
+    placeholder="Ex: comprovante conferido, falta autorização, entrou em contato pelo WhatsApp..."
+    className="w-full min-h-[140px] bg-[#121212] border border-[#2A2A2A] rounded-2xl px-5 py-4 outline-none focus:border-[#C79A4A] text-white"
+  />
+
+  <button
+    onClick={salvarObservacao}
+    disabled={salvandoObservacao}
+    className="mt-4 bg-[#C79A4A] hover:bg-yellow-600 text-black px-5 py-3 rounded-xl font-black transition-all disabled:opacity-60"
+  >
+    {salvandoObservacao ? "SALVANDO..." : "SALVAR OBSERVAÇÃO"}
+  </button>
+</div>
 
             <Secao titulo="Pagamento e anexos" colunas="md:grid-cols-3">
               <Anexo titulo="Foto" url={item.foto_url} textoBotao="Abrir foto" />

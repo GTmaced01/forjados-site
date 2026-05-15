@@ -516,12 +516,16 @@ export default function InscricaoPage() {
           </div>
 
           <button
-            type="submit"
-            disabled={carregando}
-            className="w-full bg-[#B71C1C] hover:bg-red-800 transition-all py-5 rounded-2xl font-black text-xl disabled:opacity-60"
-          >
-            {carregando ? "ENVIANDO..." : "FINALIZAR INSCRIÇÃO"}
-          </button>
+  type="submit"
+  disabled={carregando}
+  className="w-full bg-[#B71C1C] hover:bg-red-800 transition-all py-5 rounded-2xl font-black text-xl disabled:opacity-60 flex items-center justify-center gap-3"
+>
+  {carregando && (
+    <span className="w-5 h-5 border-4 border-white/30 border-t-white rounded-full animate-spin" />
+  )}
+
+  {carregando ? "ENVIANDO INSCRIÇÃO..." : "FINALIZAR INSCRIÇÃO"}
+</button>
         </form>
       </section>
     </main>
