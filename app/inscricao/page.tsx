@@ -3,11 +3,107 @@
 import { useState } from "react";
 import { supabase } from "../lib/supabase";
 
+const WHATSAPP_ADMIN = "5521990571370";
+
 export default function InscricaoPage() {
   const [carregando, setCarregando] = useState(false);
-  const [idade, setIdade] = useState("");
+  const [dataNascimento, setDataNascimento] = useState("");
+  const [cpf, setCpf] = useState("");
   const [congrega, setCongrega] = useState("");
   const [mensagem, setMensagem] = useState("");
+
+  function limparCPF(valor: string) {
+    return valor.replace(/\D/g, "");
+  }
+
+  function formatarCPF(valor: string) {
+    const somenteNumeros = limparCPF(valor).slice(0, 11);
+
+    return somenteNumeros
+      .replace(/^(\d{3})(\d)/, "$1.$2")
+      .replace(/^(\d{3})\.(\d{3})(\d)/, "$1.$2.$3")
+      .replace(/\.(\d{3})(\d)/, ".$1-$2");
+  }
+
+  function validarCPF(cpfInformado: string) {
+    const cpfLimpo = limparCPF(cpfInformado);
+
+    if (cpfLimpo.length !== 11) return false;
+    if (/^(\d)\1{10}$/.test(cpfLimpo)) return false;
+
+    let soma = 0;
+
+    for (let i = 0; i < 9; i++) {
+      soma += Number(cpfLimpo.charAt(i)) * (10 - i);
+    }
+
+    let primeiroDigito = 11 - (soma % 11);
+
+    if (primeiroDigito >= 10) {
+      primeiroDigito = 0;
+    }
+
+    if (primeiroDigito !== Number(cpfLimpo.charAt(9))) {
+      return false;
+    }
+
+    soma = 0;
+
+    for (let i = 0; i < 10; i++) {
+      soma += Number(cpfLimpo.charAt(i)) * (11 - i);
+    }
+
+    let segundoDigito = 11 - (soma % 11);
+
+    if (segundoDigito >= 10) {
+      segundoDigito = 0;
+    }
+
+    if (segundoDigito !== Number(cpfLimpo.charAt(10))) {
+      return false;
+    }
+
+    return true;
+  }
+
+  function calcularIdade(data: string) {
+    if (!data) return 0;
+
+    const nascimento = new Date(`${data}T00:00:00`);
+    const hoje = new Date();
+
+    let idade = hoje.getFullYear() - nascimento.getFullYear();
+
+    const mesAtual = hoje.getMonth();
+    const diaAtual = hoje.getDate();
+    const mesNascimento = nascimento.getMonth();
+    const diaNascimento = nascimento.getDate();
+
+    if (
+      mesAtual < mesNascimento ||
+      (mesAtual === mesNascimento && diaAtual < diaNascimento)
+    ) {
+      idade--;
+    }
+
+    return idade;
+  }
+
+  function validarDataNascimento(data: string) {
+    if (!data) return false;
+
+    const nascimento = new Date(`${data}T00:00:00`);
+    const hoje = new Date();
+
+    if (Number.isNaN(nascimento.getTime())) return false;
+    if (nascimento > hoje) return false;
+
+    const idadeCalculada = calcularIdade(data);
+
+    if (idadeCalculada < 0 || idadeCalculada > 120) return false;
+
+    return true;
+  }
 
   function pegarExtensao(arquivo: File) {
     if (arquivo.type === "image/png") return "png";
@@ -47,6 +143,18 @@ export default function InscricaoPage() {
     return data.publicUrl;
   }
 
+  function abrirNotificacaoWhatsAppAdmin(nome: string, telefone: string) {
+    if (!WHATSAPP_ADMIN.trim()) return;
+
+    const numeroAdmin = WHATSAPP_ADMIN.replace(/\D/g, "");
+
+    if (!numeroAdmin) return;
+
+    const texto = `Nova ficha recebida no FORJADOS.%0A%0ANome: ${nome}%0ATelefone: ${telefone}%0A%0AAcesse o painel admin para conferir.`;
+
+    window.open(`https://wa.me/${numeroAdmin}?text=${texto}`, "_blank");
+  }
+
   async function enviarFormulario(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -57,7 +165,11 @@ export default function InscricaoPage() {
       const form = event.currentTarget;
       const dados = new FormData(form);
 
-      const idadeNumero = Number(dados.get("idade"));
+      const dataNascimentoInformada = String(
+        dados.get("data_nascimento") || ""
+      ).trim();
+
+      const idadeCalculada = calcularIdade(dataNascimentoInformada);
 
       const camposObrigatorios = [
         { nome: "nome", label: "Nome completo" },
@@ -65,7 +177,7 @@ export default function InscricaoPage() {
         { nome: "telefone", label: "WhatsApp" },
         { nome: "email", label: "E-mail" },
         { nome: "endereco", label: "Endereço" },
-        { nome: "idade", label: "Idade" },
+        { nome: "data_nascimento", label: "Data de nascimento" },
         { nome: "congrega", label: "Congrega em alguma igreja?" },
         { nome: "camisa", label: "Tamanho da camisa" },
         { nome: "alergias", label: "Alergias" },
@@ -92,8 +204,14 @@ export default function InscricaoPage() {
         }
       }
 
-      if (!idadeNumero || idadeNumero <= 0) {
-        alert("Informe uma idade válida.");
+      if (!validarCPF(String(dados.get("cpf")))) {
+        alert("Informe um CPF válido.");
+        setCarregando(false);
+        return;
+      }
+
+      if (!validarDataNascimento(dataNascimentoInformada)) {
+        alert("Informe uma data de nascimento válida.");
         setCarregando(false);
         return;
       }
@@ -140,7 +258,7 @@ export default function InscricaoPage() {
         "Erro ao enviar comprovante"
       );
 
-      if (idadeNumero > 0 && idadeNumero < 18) {
+      if (idadeCalculada < 18) {
         if (!autorizacaoMenor || autorizacaoMenor.size === 0) {
           alert("É obrigatório anexar a autorização para menor de idade.");
           setCarregando(false);
@@ -154,13 +272,17 @@ export default function InscricaoPage() {
         );
       }
 
+      const nome = String(dados.get("nome"));
+      const telefone = String(dados.get("telefone"));
+
       const inscrito = {
-        nome: String(dados.get("nome")),
+        nome,
         cpf: String(dados.get("cpf")),
-        telefone: String(dados.get("telefone")),
+        telefone,
         email: String(dados.get("email")),
         endereco: String(dados.get("endereco")),
-        idade: String(dados.get("idade")),
+        data_nascimento: dataNascimentoInformada,
+        idade: String(idadeCalculada),
 
         igreja:
           String(dados.get("congrega")) === "sim"
@@ -185,6 +307,7 @@ export default function InscricaoPage() {
         autorizacao_menor_url: autorizacaoMenorUrl,
 
         pagamento_status: "pendente",
+        observacao_admin: "",
       };
 
       const { error } = await supabase.from("inscritos").insert(inscrito);
@@ -201,8 +324,11 @@ export default function InscricaoPage() {
       setMensagem("Inscrição enviada com sucesso!");
       alert("Inscrição enviada com sucesso!");
 
+      abrirNotificacaoWhatsAppAdmin(nome, telefone);
+
       form.reset();
-      setIdade("");
+      setDataNascimento("");
+      setCpf("");
       setCongrega("");
     } catch (error) {
       console.error(error);
@@ -218,28 +344,31 @@ export default function InscricaoPage() {
     }
   }
 
+  const idadeAtual = calcularIdade(dataNascimento);
+  const ehMenor = dataNascimento && idadeAtual > 0 && idadeAtual < 18;
+
   return (
     <main className="min-h-screen bg-[#0F0F10] text-white px-6 py-20">
       <section className="max-w-3xl mx-auto">
-      <div className="mb-12">
-  <div className="text-left mb-6">
-    <span className="inline-block border border-[#C79A4A] text-[#C79A4A] px-4 py-2 rounded-full uppercase tracking-widest text-sm">
-      FICHA DE INSCRIÇÃO
-    </span>
-  </div>
+        <div className="mb-12">
+          <div className="text-left mb-6">
+            <span className="inline-block border border-[#C79A4A] text-[#C79A4A] px-4 py-2 rounded-full uppercase tracking-widest text-sm">
+              FICHA DE INSCRIÇÃO
+            </span>
+          </div>
 
-  <div className="text-center">
-    <img
-      src="/logo-forjados.png"
-      alt="Logo FORJADOS"
-      className="mx-auto w-full max-w-[320px] mb-6"
-    />
+          <div className="text-center">
+            <img
+              src="/logo-forjados.png"
+              alt="Logo FORJADOS"
+              className="mx-auto w-full max-w-[320px] mb-6"
+            />
 
-    <p className="text-gray-400 text-lg">
-      Preencha seus dados para garantir sua inscrição.
-    </p>
-  </div>
-</div>
+            <p className="text-gray-400 text-lg">
+              Preencha seus dados para garantir sua inscrição.
+            </p>
+          </div>
+        </div>
 
         {mensagem && (
           <div className="mb-6 bg-[#181818] border border-[#C79A4A] rounded-2xl p-4 text-center text-[#C79A4A] font-bold">
@@ -286,7 +415,11 @@ export default function InscricaoPage() {
               name="cpf"
               required
               type="text"
+              inputMode="numeric"
+              maxLength={14}
               placeholder="CPF"
+              value={cpf}
+              onChange={(e) => setCpf(formatarCPF(e.target.value))}
               className="w-full bg-[#0F0F10] border border-[#2A2A2A] rounded-2xl px-5 py-4 outline-none focus:border-[#C79A4A]"
             />
 
@@ -314,15 +447,29 @@ export default function InscricaoPage() {
               className="w-full bg-[#0F0F10] border border-[#2A2A2A] rounded-2xl px-5 py-4 outline-none focus:border-[#C79A4A]"
             />
 
-            <input
-              name="idade"
-              required
-              type="number"
-              placeholder="Idade"
-              value={idade}
-              onChange={(e) => setIdade(e.target.value)}
-              className="w-full bg-[#0F0F10] border border-[#2A2A2A] rounded-2xl px-5 py-4 outline-none focus:border-[#C79A4A]"
-            />
+            <div>
+              <label className="block text-gray-400 mb-2">
+                Data de nascimento
+              </label>
+
+              <input
+                name="data_nascimento"
+                required
+                type="date"
+                value={dataNascimento}
+                onChange={(e) => setDataNascimento(e.target.value)}
+                className="w-full bg-[#0F0F10] border border-[#2A2A2A] rounded-2xl px-5 py-4 outline-none focus:border-[#C79A4A]"
+              />
+
+              {dataNascimento && idadeAtual > 0 && (
+                <p className="text-gray-500 text-sm mt-2">
+                  Idade identificada:{" "}
+                  <span className="text-[#C79A4A] font-bold">
+                    {idadeAtual} anos
+                  </span>
+                </p>
+              )}
+            </div>
 
             <div className="space-y-4">
               <div>
@@ -360,7 +507,7 @@ export default function InscricaoPage() {
               )}
             </div>
 
-            {Number(idade) > 0 && Number(idade) < 18 && (
+            {ehMenor && (
               <div className="bg-[#0F0F10] border border-[#C79A4A] rounded-2xl p-5">
                 <h3 className="text-xl font-black text-[#C79A4A] mb-2">
                   Autorização para menor de idade
@@ -493,7 +640,8 @@ export default function InscricaoPage() {
             </div>
 
             <p className="text-gray-500 mt-3">
-              Valor de pré-venda com 25% de desconto. Pagamento via Pix. Anexe o comprovante abaixo.
+              Valor de pré-venda com 25% de desconto. Pagamento via Pix. Anexe
+              o comprovante abaixo.
             </p>
           </div>
 
@@ -516,16 +664,16 @@ export default function InscricaoPage() {
           </div>
 
           <button
-  type="submit"
-  disabled={carregando}
-  className="w-full bg-[#B71C1C] hover:bg-red-800 transition-all py-5 rounded-2xl font-black text-xl disabled:opacity-60 flex items-center justify-center gap-3"
->
-  {carregando && (
-    <span className="w-5 h-5 border-4 border-white/30 border-t-white rounded-full animate-spin" />
-  )}
+            type="submit"
+            disabled={carregando}
+            className="w-full bg-[#B71C1C] hover:bg-red-800 transition-all py-5 rounded-2xl font-black text-xl disabled:opacity-60 flex items-center justify-center gap-3"
+          >
+            {carregando && (
+              <span className="w-5 h-5 border-4 border-white/30 border-t-white rounded-full animate-spin" />
+            )}
 
-  {carregando ? "ENVIANDO INSCRIÇÃO..." : "FINALIZAR INSCRIÇÃO"}
-</button>
+            {carregando ? "ENVIANDO INSCRIÇÃO..." : "FINALIZAR INSCRIÇÃO"}
+          </button>
         </form>
       </section>
     </main>

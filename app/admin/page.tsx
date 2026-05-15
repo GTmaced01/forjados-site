@@ -11,6 +11,7 @@ type Inscrito = {
   email: string;
   endereco: string;
   idade: string;
+  data_nascimento: string;
   igreja: string;
   camisa: string;
 
@@ -26,11 +27,83 @@ type Inscrito = {
   autorizacao_menor_url: string;
 
   pagamento_status: string;
-observacao_admin: string;
-created_at: string;
+  observacao_admin: string;
+  created_at: string;
 };
 
-type FiltroStatus = "todos" | "pendente" | "pago" | "cancelado" | "menores";
+type FiltroStatus =
+  | "todos"
+  | "pendente"
+  | "pago"
+  | "cancelado"
+  | "menores"
+  | "aniversariantes";
+
+function calcularIdadePorNascimento(dataNascimento?: string, idadeAntiga?: string) {
+  if (!dataNascimento) {
+    return Number(idadeAntiga || 0);
+  }
+
+  const nascimento = new Date(`${dataNascimento}T00:00:00`);
+  const hoje = new Date();
+
+  if (Number.isNaN(nascimento.getTime())) {
+    return Number(idadeAntiga || 0);
+  }
+
+  let idade = hoje.getFullYear() - nascimento.getFullYear();
+
+  const mesAtual = hoje.getMonth();
+  const diaAtual = hoje.getDate();
+  const mesNascimento = nascimento.getMonth();
+  const diaNascimento = nascimento.getDate();
+
+  if (
+    mesAtual < mesNascimento ||
+    (mesAtual === mesNascimento && diaAtual < diaNascimento)
+  ) {
+    idade--;
+  }
+
+  return idade;
+}
+
+function formatarDataNascimento(dataNascimento?: string) {
+  if (!dataNascimento) return "-";
+
+  const partes = dataNascimento.split("-");
+
+  if (partes.length !== 3) return dataNascimento;
+
+  const [ano, mes, dia] = partes;
+
+  return `${dia}/${mes}/${ano}`;
+}
+
+function ehAniversarianteDoMes(dataNascimento?: string) {
+  if (!dataNascimento) return false;
+
+  const nascimento = new Date(`${dataNascimento}T00:00:00`);
+  const hoje = new Date();
+
+  if (Number.isNaN(nascimento.getTime())) return false;
+
+  return nascimento.getMonth() === hoje.getMonth();
+}
+
+function ehAniversarianteHoje(dataNascimento?: string) {
+  if (!dataNascimento) return false;
+
+  const nascimento = new Date(`${dataNascimento}T00:00:00`);
+  const hoje = new Date();
+
+  if (Number.isNaN(nascimento.getTime())) return false;
+
+  return (
+    nascimento.getDate() === hoje.getDate() &&
+    nascimento.getMonth() === hoje.getMonth()
+  );
+}
 
 export default function AdminPage() {
   const [email, setEmail] = useState("");
@@ -58,30 +131,32 @@ export default function AdminPage() {
   useEffect(() => {
     verificarSessao();
   }, []);
+
   async function recuperarSenha() {
     if (!email.trim()) {
       setMensagemLogin("Digite seu e-mail no campo acima para recuperar a senha.");
       return;
     }
-  
+
     setCarregando(true);
     setMensagemLogin("");
-  
+
     const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
       redirectTo: "https://forjados-site.vercel.app/admin/redefinir-senha",
     });
-  
+
     setCarregando(false);
-  
+
     if (error) {
       setMensagemLogin("Erro ao solicitar recuperação: " + error.message);
       return;
     }
-  
+
     setMensagemLogin(
       "Se este e-mail estiver cadastrado como admin, você receberá um link para redefinir a senha."
     );
   }
+
   async function fazerLogin(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setCarregando(true);
@@ -104,7 +179,7 @@ export default function AdminPage() {
 
   async function sair() {
     await supabase.auth.signOut();
-  
+
     setConfirmarLogout(false);
     setLogado(false);
     setInscritos([]);
@@ -115,19 +190,19 @@ export default function AdminPage() {
 
   async function carregarInscritos() {
     setCarregandoInscritos(true);
-  
+
     const { data, error } = await supabase
       .from("inscritos")
       .select("*")
       .order("created_at", { ascending: false });
-  
+
     setCarregandoInscritos(false);
-  
+
     if (error) {
       alert("Erro ao carregar inscritos: " + error.message);
       return;
     }
-  
+
     setInscritos(data || []);
   }
 
@@ -140,32 +215,6 @@ export default function AdminPage() {
     if (error) {
       alert("Erro ao alterar status: " + error.message);
       return;
-    }
-    async function salvarObservacaoAdmin(id: string, observacao: string) {
-      const { error } = await supabase
-        .from("inscritos")
-        .update({ observacao_admin: observacao })
-        .eq("id", id);
-    
-      if (error) {
-        alert("Erro ao salvar observação: " + error.message);
-        return false;
-      }
-    
-      setInscritos((lista) =>
-        lista.map((item) =>
-          item.id === id ? { ...item, observacao_admin: observacao } : item
-        )
-      );
-    
-      if (selecionado?.id === id) {
-        setSelecionado({
-          ...selecionado,
-          observacao_admin: observacao,
-        });
-      }
-    
-      return true;
     }
 
     setInscritos((lista) =>
@@ -181,30 +230,31 @@ export default function AdminPage() {
       });
     }
   }
+
   async function salvarObservacaoAdmin(id: string, observacao: string) {
     const { error } = await supabase
       .from("inscritos")
       .update({ observacao_admin: observacao })
       .eq("id", id);
-  
+
     if (error) {
       alert("Erro ao salvar observação: " + error.message);
       return false;
     }
-  
+
     setInscritos((lista) =>
       lista.map((item) =>
         item.id === id ? { ...item, observacao_admin: observacao } : item
       )
     );
-  
+
     if (selecionado?.id === id) {
       setSelecionado({
         ...selecionado,
         observacao_admin: observacao,
       });
     }
-  
+
     return true;
   }
 
@@ -277,10 +327,21 @@ export default function AdminPage() {
     (item) => item.pagamento_status === "cancelado"
   );
 
-  const listaMenores = inscritos.filter((item) => Number(item.idade) < 18);
+  const listaMenores = inscritos.filter(
+    (item) => calcularIdadePorNascimento(item.data_nascimento, item.idade) < 18
+  );
+
+  const listaAniversariantes = inscritos.filter((item) =>
+    ehAniversarianteDoMes(item.data_nascimento)
+  );
 
   const inscritosFiltrados = inscritos.filter((item) => {
     const texto = busca.toLowerCase();
+
+    const idadeCalculada = calcularIdadePorNascimento(
+      item.data_nascimento,
+      item.idade
+    );
 
     const bateBusca =
       item.nome?.toLowerCase().includes(texto) ||
@@ -289,14 +350,17 @@ export default function AdminPage() {
       item.email?.toLowerCase().includes(texto) ||
       item.igreja?.toLowerCase().includes(texto) ||
       item.camisa?.toLowerCase().includes(texto) ||
-      item.pagamento_status?.toLowerCase().includes(texto);
+      item.pagamento_status?.toLowerCase().includes(texto) ||
+      formatarDataNascimento(item.data_nascimento).toLowerCase().includes(texto);
 
     const statusNormalizado =
       item.pagamento_status === "approved" ? "pago" : item.pagamento_status;
 
     const bateFiltro =
       filtro === "todos" ||
-      (filtro === "menores" && Number(item.idade) < 18) ||
+      (filtro === "menores" && idadeCalculada < 18) ||
+      (filtro === "aniversariantes" &&
+        ehAniversarianteDoMes(item.data_nascimento)) ||
       filtro === statusNormalizado;
 
     return bateBusca && bateFiltro;
@@ -306,6 +370,7 @@ export default function AdminPage() {
   const pendentes = listaPendentes.length;
   const cancelados = listaCancelados.length;
   const menores = listaMenores.length;
+  const aniversariantes = listaAniversariantes.length;
 
   function exportarCSV(lista: Inscrito[], nomeArquivo: string) {
     const cabecalho = [
@@ -314,6 +379,7 @@ export default function AdminPage() {
       "Telefone",
       "Email",
       "Endereco",
+      "Data nascimento",
       "Idade",
       "Igreja",
       "Camisa",
@@ -324,11 +390,11 @@ export default function AdminPage() {
       "Contato emergencia nome",
       "Contato emergencia telefone",
       "Status",
-"Observacao interna",
-"Foto",
+      "Observacao interna",
+      "Foto",
       "Comprovante",
       "Autorizacao menor",
-      "Data",
+      "Data inscricao",
     ];
 
     const linhas = lista.map((item) => [
@@ -337,7 +403,8 @@ export default function AdminPage() {
       item.telefone,
       item.email,
       item.endereco,
-      item.idade,
+      formatarDataNascimento(item.data_nascimento),
+      String(calcularIdadePorNascimento(item.data_nascimento, item.idade)),
       item.igreja,
       item.camisa,
       item.alergias,
@@ -347,8 +414,8 @@ export default function AdminPage() {
       item.contato_emergencia_nome,
       item.contato_emergencia_telefone,
       textoStatus(item.pagamento_status),
-item.observacao_admin,
-item.foto_url,
+      item.observacao_admin,
+      item.foto_url,
       item.comprovante_url,
       item.autorizacao_menor_url,
       formatarData(item.created_at),
@@ -376,6 +443,51 @@ item.foto_url,
     URL.revokeObjectURL(url);
   }
 
+  function exportarQuantidadeCamisas() {
+    const tamanhos = ["PP", "P", "M", "G", "GG", "XG", "EXG"];
+
+    const contagem = tamanhos.map((tamanho) => {
+      const quantidade = inscritos.filter((item) => {
+        const camisa = String(item.camisa || "").trim().toUpperCase();
+        return camisa === tamanho;
+      }).length;
+
+      return {
+        tamanho,
+        quantidade,
+      };
+    });
+
+    const total = contagem.reduce((soma, item) => soma + item.quantidade, 0);
+
+    const linhas = [
+      ["Tamanho", "Quantidade"],
+      ...contagem.map((item) => [item.tamanho, String(item.quantidade)]),
+      ["Total", String(total)],
+    ];
+
+    const conteudo = linhas
+      .map((linha) =>
+        linha
+          .map((campo) => `"${String(campo || "").replaceAll('"', '""')}"`)
+          .join(";")
+      )
+      .join("\n");
+
+    const arquivo = new Blob([conteudo], {
+      type: "text/csv;charset=utf-8;",
+    });
+
+    const url = URL.createObjectURL(arquivo);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = "quantidade-camisas-forjados.csv";
+    link.click();
+
+    URL.revokeObjectURL(url);
+  }
+
   if (!logado) {
     return (
       <main className="min-h-screen bg-[#070707] text-white flex items-center justify-center px-6 relative overflow-hidden">
@@ -398,8 +510,8 @@ item.foto_url,
             </h1>
 
             <p className="text-gray-400">
-              Acesso restrito à organização do FORJADOS.
-              Você é um FORJADO? Então prove.
+              Acesso restrito à organização do FORJADOS. Você é um FORJADO?
+              Então prove.
             </p>
           </div>
 
@@ -413,36 +525,36 @@ item.foto_url,
               className="w-full bg-[#0B0B0B] border border-[#2A2A2A] rounded-2xl px-5 py-4 outline-none focus:border-[#C79A4A]"
             />
 
-<input
-  type="password"
-  placeholder="Senha"
-  value={senha}
-  onChange={(e) => setSenha(e.target.value)}
-  autoComplete="off"
-  className="w-full bg-[#0B0B0B] border border-[#2A2A2A] rounded-2xl px-5 py-4 outline-none focus:border-[#C79A4A]"
-/>
+            <input
+              type="password"
+              placeholder="Senha"
+              value={senha}
+              onChange={(e) => setSenha(e.target.value)}
+              autoComplete="off"
+              className="w-full bg-[#0B0B0B] border border-[#2A2A2A] rounded-2xl px-5 py-4 outline-none focus:border-[#C79A4A]"
+            />
 
-{mensagemLogin && (
-  <div className="bg-[#0B0B0B] border border-[#2A2A2A] rounded-2xl p-4 text-center text-gray-300 text-sm">
-    {mensagemLogin}
-  </div>
-)}
+            {mensagemLogin && (
+              <div className="bg-[#0B0B0B] border border-[#2A2A2A] rounded-2xl p-4 text-center text-gray-300 text-sm">
+                {mensagemLogin}
+              </div>
+            )}
 
-<button
-  disabled={carregando}
-  className="w-full bg-[#C79A4A] hover:bg-yellow-600 transition-all text-black py-4 rounded-2xl font-black disabled:opacity-60"
->
-  {carregando ? "ENTRANDO..." : "ENTRAR NO PAINEL"}
-</button>
+            <button
+              disabled={carregando}
+              className="w-full bg-[#C79A4A] hover:bg-yellow-600 transition-all text-black py-4 rounded-2xl font-black disabled:opacity-60"
+            >
+              {carregando ? "ENTRANDO..." : "ENTRAR NO PAINEL"}
+            </button>
 
-<button
-  type="button"
-  onClick={recuperarSenha}
-  disabled={carregando}
-  className="w-full text-gray-400 hover:text-[#C79A4A] transition-all text-sm font-bold disabled:opacity-60"
->
-  Esqueci minha senha
-</button>
+            <button
+              type="button"
+              onClick={recuperarSenha}
+              disabled={carregando}
+              className="w-full text-gray-400 hover:text-[#C79A4A] transition-all text-sm font-bold disabled:opacity-60"
+            >
+              Esqueci minha senha
+            </button>
           </div>
         </form>
       </main>
@@ -472,29 +584,28 @@ item.foto_url,
                 </span>
 
                 <h1 className="text-4xl sm:text-5xl font-black text-white leading-tight">
-                  Painel{" "}
-                  <span className="text-[#C79A4A]">FORJADOS</span>
+                  Painel <span className="text-[#C79A4A]">FORJADOS</span>
                 </h1>
 
                 <p className="text-gray-400 mt-2 max-w-2xl">
                   Gerencie inscrições, saúde, anexos, comprovantes, menores de
-                  idade e status de pagamento.
+                  idade, aniversários e status de pagamento.
                 </p>
               </div>
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3 relative z-[9999]">
-            <button
-  onClick={carregarInscritos}
-  disabled={carregandoInscritos}
-  className="bg-black/40 border border-[#2A2A2A] hover:border-[#C79A4A] px-5 py-3 rounded-2xl font-bold transition-all disabled:opacity-60 flex items-center justify-center gap-2"
->
-  {carregandoInscritos && (
-    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-  )}
+              <button
+                onClick={carregarInscritos}
+                disabled={carregandoInscritos}
+                className="bg-black/40 border border-[#2A2A2A] hover:border-[#C79A4A] px-5 py-3 rounded-2xl font-bold transition-all disabled:opacity-60 flex items-center justify-center gap-2"
+              >
+                {carregandoInscritos && (
+                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                )}
 
-  {carregandoInscritos ? "Atualizando..." : "Atualizar"}
-</button>
+                {carregandoInscritos ? "Atualizando..." : "Atualizar"}
+              </button>
 
               <div className="relative">
                 <button
@@ -550,16 +661,25 @@ item.foto_url,
                       }}
                     />
 
+                    <MenuExportar
+                      label="Exportar aniversariantes"
+                      cor="text-[#C79A4A]"
+                      onClick={() => {
+                        exportarCSV(
+                          listaAniversariantes,
+                          "aniversariantes-forjados.csv"
+                        );
+                        setMenuExportarAberto(false);
+                      }}
+                    />
+
                     <div className="border-t border-[#2A2A2A]" />
 
                     <MenuExportar
-                      label="Exportar filtro atual"
-                      cor="text-gray-300"
+                      label="Exportar camisas"
+                      cor="text-[#C79A4A]"
                       onClick={() => {
-                        exportarCSV(
-                          inscritosFiltrados,
-                          "filtro-atual-forjados.csv"
-                        );
+                        exportarQuantidadeCamisas();
                         setMenuExportarAberto(false);
                       }}
                     />
@@ -568,16 +688,16 @@ item.foto_url,
               </div>
 
               <button
-  onClick={() => setConfirmarLogout(true)}
-  className="bg-[#B71C1C] hover:bg-red-800 px-5 py-3 rounded-2xl font-black transition-all"
->
-  Encerrar sessão
-</button>
+                onClick={() => setConfirmarLogout(true)}
+                className="bg-[#B71C1C] hover:bg-red-800 px-5 py-3 rounded-2xl font-black transition-all"
+              >
+                Encerrar sessão
+              </button>
             </div>
           </div>
         </div>
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-6 gap-4 mb-8">
           <CardResumo
             titulo="Total"
             valor={inscritos.length}
@@ -611,13 +731,20 @@ item.foto_url,
             detalhe="Exigem autorização"
             cor="text-[#C79A4A]"
           />
+
+          <CardResumo
+            titulo="Aniversariantes"
+            valor={aniversariantes}
+            detalhe="Do mês atual"
+            cor="text-[#C79A4A]"
+          />
         </div>
 
         <div className="bg-[#121212] border border-[#2A2A2A] rounded-[28px] p-4 sm:p-5 mb-6 shadow-xl">
           <div className="flex flex-col gap-4">
             <input
               type="text"
-              placeholder="Buscar por nome, CPF, telefone, e-mail, igreja, camisa ou status..."
+              placeholder="Buscar por nome, CPF, telefone, e-mail, igreja, camisa, nascimento ou status..."
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
               className="w-full bg-[#090909] border border-[#2A2A2A] rounded-2xl px-5 py-4 outline-none focus:border-[#C79A4A]"
@@ -658,6 +785,13 @@ item.foto_url,
               >
                 Menores
               </BotaoFiltro>
+
+              <BotaoFiltro
+                ativo={filtro === "aniversariantes"}
+                onClick={() => setFiltro("aniversariantes")}
+              >
+                Aniversariantes
+              </BotaoFiltro>
             </div>
 
             <p className="text-gray-500 text-sm">
@@ -671,12 +805,14 @@ item.foto_url,
             </p>
           </div>
         </div>
+
         {carregandoInscritos && (
-  <div className="mb-6 bg-[#121212] border border-[#C79A4A]/40 rounded-2xl p-4 text-[#C79A4A] font-bold flex items-center gap-3 animate-fade-in">
-    <span className="w-5 h-5 border-4 border-[#C79A4A]/30 border-t-[#C79A4A] rounded-full animate-spin" />
-    Carregando inscrições...
-  </div>
-)}
+          <div className="mb-6 bg-[#121212] border border-[#C79A4A]/40 rounded-2xl p-4 text-[#C79A4A] font-bold flex items-center gap-3 animate-fade-in">
+            <span className="w-5 h-5 border-4 border-[#C79A4A]/30 border-t-[#C79A4A] rounded-full animate-spin" />
+            Carregando inscrições...
+          </div>
+        )}
+
         <div className="bg-[#121212] border border-[#2A2A2A] rounded-[28px] overflow-hidden shadow-2xl">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -684,6 +820,7 @@ item.foto_url,
                 <tr>
                   <th className="p-4 text-left">Foto</th>
                   <th className="p-4 text-left">Nome</th>
+                  <th className="p-4 text-left">Nascimento</th>
                   <th className="p-4 text-left">Idade</th>
                   <th className="p-4 text-left">WhatsApp</th>
                   <th className="p-4 text-left">Igreja</th>
@@ -697,7 +834,18 @@ item.foto_url,
 
               <tbody>
                 {inscritosFiltrados.map((item) => {
-                  const ehMenor = Number(item.idade) < 18;
+                  const idadeCalculada = calcularIdadePorNascimento(
+                    item.data_nascimento,
+                    item.idade
+                  );
+
+                  const ehMenor = idadeCalculada < 18;
+                  const aniversarianteMes = ehAniversarianteDoMes(
+                    item.data_nascimento
+                  );
+                  const aniversarianteHoje = ehAniversarianteHoje(
+                    item.data_nascimento
+                  );
 
                   return (
                     <tr
@@ -725,6 +873,7 @@ item.foto_url,
 
                       <td className="p-4 font-bold min-w-[200px]">
                         <div className="text-white">{item.nome}</div>
+
                         <div className="text-gray-500 text-xs mt-1">
                           {item.email}
                         </div>
@@ -732,6 +881,24 @@ item.foto_url,
                         {ehMenor && (
                           <span className="inline-block mt-2 text-[10px] bg-[#C79A4A] text-black px-2 py-1 rounded-full font-black">
                             MENOR DE IDADE
+                          </span>
+                        )}
+
+                        {aniversarianteHoje && (
+                          <span className="inline-block mt-2 ml-1 text-[10px] bg-green-500 text-black px-2 py-1 rounded-full font-black">
+                            ANIVERSÁRIO HOJE
+                          </span>
+                        )}
+                      </td>
+
+                      <td className="p-4 min-w-[130px]">
+                        <span className="text-gray-300">
+                          {formatarDataNascimento(item.data_nascimento)}
+                        </span>
+
+                        {!aniversarianteHoje && aniversarianteMes && (
+                          <span className="block mt-2 text-[10px] bg-[#C79A4A] text-black px-2 py-1 rounded-full font-black w-fit">
+                            ANIVERSARIANTE
                           </span>
                         )}
                       </td>
@@ -742,7 +909,7 @@ item.foto_url,
                             ehMenor ? "text-[#C79A4A] font-black" : ""
                           }
                         >
-                          {item.idade || "-"}
+                          {idadeCalculada || "-"}
                         </span>
                       </td>
 
@@ -840,48 +1007,49 @@ item.foto_url,
 
       {selecionado && (
         <FichaCompleta
-        item={selecionado}
-        fechar={() => setSelecionado(null)}
-        alterarStatus={alterarStatus}
-        salvarObservacaoAdmin={salvarObservacaoAdmin}
-        abrirWhatsApp={abrirWhatsApp}
-        classeStatus={classeStatus}
-        formatarData={formatarData}
-      />
+          item={selecionado}
+          fechar={() => setSelecionado(null)}
+          alterarStatus={alterarStatus}
+          salvarObservacaoAdmin={salvarObservacaoAdmin}
+          abrirWhatsApp={abrirWhatsApp}
+          classeStatus={classeStatus}
+          formatarData={formatarData}
+        />
       )}
+
       {confirmarLogout && (
-  <div className="fixed inset-0 bg-black/80 z-[99999] flex items-center justify-center px-4 backdrop-blur-sm">
-    <div className="w-full max-w-md bg-[#121212] border border-[#2A2A2A] rounded-[32px] p-8 shadow-2xl text-center animate-fade-up">
-      <div className="w-16 h-16 mx-auto rounded-full bg-[#B71C1C]/15 border border-[#B71C1C]/40 flex items-center justify-center mb-5">
-        <span className="text-3xl">⚠️</span>
-      </div>
+        <div className="fixed inset-0 bg-black/80 z-[99999] flex items-center justify-center px-4 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-[#121212] border border-[#2A2A2A] rounded-[32px] p-8 shadow-2xl text-center animate-fade-up">
+            <div className="w-16 h-16 mx-auto rounded-full bg-[#B71C1C]/15 border border-[#B71C1C]/40 flex items-center justify-center mb-5">
+              <span className="text-3xl">⚠️</span>
+            </div>
 
-      <h2 className="text-3xl font-black text-white mb-3">
-        Encerrar sessão?
-      </h2>
+            <h2 className="text-3xl font-black text-white mb-3">
+              Encerrar sessão?
+            </h2>
 
-      <p className="text-gray-400 leading-relaxed mb-8">
-        Você será desconectado do painel administrativo do FORJADOS.
-      </p>
+            <p className="text-gray-400 leading-relaxed mb-8">
+              Você será desconectado do painel administrativo do FORJADOS.
+            </p>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <button
-          onClick={() => setConfirmarLogout(false)}
-          className="bg-[#0B0B0B] border border-[#2A2A2A] hover:border-[#C79A4A] text-white px-5 py-4 rounded-2xl font-black transition-all"
-        >
-          Cancelar
-        </button>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <button
+                onClick={() => setConfirmarLogout(false)}
+                className="bg-[#0B0B0B] border border-[#2A2A2A] hover:border-[#C79A4A] text-white px-5 py-4 rounded-2xl font-black transition-all"
+              >
+                Cancelar
+              </button>
 
-        <button
-          onClick={sair}
-          className="bg-[#B71C1C] hover:bg-red-800 text-white px-5 py-4 rounded-2xl font-black transition-all"
-        >
-          Encerrar
-        </button>
-      </div>
-    </div>
-  </div>
-)}
+              <button
+                onClick={sair}
+                className="bg-[#B71C1C] hover:bg-red-800 text-white px-5 py-4 rounded-2xl font-black transition-all"
+              >
+                Encerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
@@ -903,21 +1071,29 @@ function FichaCompleta({
   classeStatus: (status: string) => string;
   formatarData: (data: string) => string;
 }) {
-  const ehMenor = Number(item.idade) < 18;
+  const idadeCalculada = calcularIdadePorNascimento(
+    item.data_nascimento,
+    item.idade
+  );
+
+  const ehMenor = idadeCalculada < 18;
+  const aniversarianteMes = ehAniversarianteDoMes(item.data_nascimento);
+  const aniversarianteHoje = ehAniversarianteHoje(item.data_nascimento);
+
   const [observacao, setObservacao] = useState(item.observacao_admin || "");
-const [salvandoObservacao, setSalvandoObservacao] = useState(false);
+  const [salvandoObservacao, setSalvandoObservacao] = useState(false);
 
-async function salvarObservacao() {
-  setSalvandoObservacao(true);
+  async function salvarObservacao() {
+    setSalvandoObservacao(true);
 
-  const sucesso = await salvarObservacaoAdmin(item.id, observacao);
+    const sucesso = await salvarObservacaoAdmin(item.id, observacao);
 
-  setSalvandoObservacao(false);
+    setSalvandoObservacao(false);
 
-  if (sucesso) {
-    alert("Observação salva com sucesso!");
+    if (sucesso) {
+      alert("Observação salva com sucesso!");
+    }
   }
-}
 
   return (
     <div className="fixed inset-0 bg-black/85 z-50 flex items-center justify-center px-4 sm:px-6 backdrop-blur-sm">
@@ -969,8 +1145,33 @@ async function salvarObservacao() {
             {ehMenor && (
               <div className="mt-4 bg-[#C79A4A]/10 border border-[#C79A4A]/40 rounded-2xl p-4">
                 <p className="text-[#C79A4A] font-black">Menor de idade</p>
+
                 <p className="text-gray-400 text-sm mt-1">
                   Verificar autorização assinada.
+                </p>
+              </div>
+            )}
+
+            {aniversarianteHoje && (
+              <div className="mt-4 bg-green-500/10 border border-green-500/40 rounded-2xl p-4">
+                <p className="text-green-400 font-black">
+                  Aniversário hoje
+                </p>
+
+                <p className="text-gray-400 text-sm mt-1">
+                  Participante faz aniversário hoje.
+                </p>
+              </div>
+            )}
+
+            {!aniversarianteHoje && aniversarianteMes && (
+              <div className="mt-4 bg-[#C79A4A]/10 border border-[#C79A4A]/40 rounded-2xl p-4">
+                <p className="text-[#C79A4A] font-black">
+                  Aniversariante do mês
+                </p>
+
+                <p className="text-gray-400 text-sm mt-1">
+                  Participante faz aniversário neste mês.
                 </p>
               </div>
             )}
@@ -1030,9 +1231,28 @@ async function salvarObservacao() {
               <Campo label="WhatsApp" valor={item.telefone} />
               <Campo label="E-mail" valor={item.email} />
               <Campo label="Endereço" valor={item.endereco} />
-              <Campo label="Idade" valor={item.idade} />
+
+              <Campo
+                label="Data de nascimento"
+                valor={formatarDataNascimento(item.data_nascimento)}
+              />
+
+              <Campo label="Idade" valor={String(idadeCalculada || "-")} />
+
+              <Campo
+                label="Aniversário"
+                valor={
+                  aniversarianteHoje
+                    ? "Hoje"
+                    : aniversarianteMes
+                    ? "Neste mês"
+                    : "Não é neste mês"
+                }
+              />
+
               <Campo label="Igreja" valor={item.igreja} />
               <Campo label="Camisa" valor={item.camisa} />
+
               <Campo
                 label="Data da inscrição"
                 valor={formatarData(item.created_at)}
@@ -1043,43 +1263,50 @@ async function salvarObservacao() {
               <Campo label="Alergias" valor={item.alergias} />
               <Campo label="Medicamentos" valor={item.medicamentos} />
               <Campo label="Condição de saúde" valor={item.condicao_saude} />
+
               <Campo
                 label="Restrição alimentar"
                 valor={item.restricao_alimentar}
               />
+
               <Campo
                 label="Contato de emergência"
                 valor={item.contato_emergencia_nome}
               />
+
               <Campo
                 label="Telefone de emergência"
                 valor={item.contato_emergencia_telefone}
               />
             </Secao>
+
             <div className="bg-[#090909] border border-[#2A2A2A] rounded-[28px] p-5">
-  <h3 className="text-2xl font-black text-[#C79A4A] mb-3">
-    Observação interna
-  </h3>
+              <h3 className="text-2xl font-black text-[#C79A4A] mb-3">
+                Observação interna
+              </h3>
 
-  <p className="text-gray-500 text-sm mb-4">
-    Anotações visíveis apenas para a organização. O participante não vê esta informação.
-  </p>
+              <p className="text-gray-500 text-sm mb-4">
+                Anotações visíveis apenas para a organização. O participante não
+                vê esta informação.
+              </p>
 
-  <textarea
-    value={observacao}
-    onChange={(e) => setObservacao(e.target.value)}
-    placeholder="Ex: comprovante conferido, falta autorização, entrou em contato pelo WhatsApp..."
-    className="w-full min-h-[140px] bg-[#121212] border border-[#2A2A2A] rounded-2xl px-5 py-4 outline-none focus:border-[#C79A4A] text-white"
-  />
+              <textarea
+                value={observacao}
+                onChange={(e) => setObservacao(e.target.value)}
+                placeholder="Ex: comprovante conferido, falta autorização, entrou em contato pelo WhatsApp..."
+                className="w-full min-h-[140px] bg-[#121212] border border-[#2A2A2A] rounded-2xl px-5 py-4 outline-none focus:border-[#C79A4A] text-white"
+              />
 
-  <button
-    onClick={salvarObservacao}
-    disabled={salvandoObservacao}
-    className="mt-4 bg-[#C79A4A] hover:bg-yellow-600 text-black px-5 py-3 rounded-xl font-black transition-all disabled:opacity-60"
-  >
-    {salvandoObservacao ? "SALVANDO..." : "SALVAR OBSERVAÇÃO"}
-  </button>
-</div>
+              <button
+                onClick={salvarObservacao}
+                disabled={salvandoObservacao}
+                className="mt-4 bg-[#C79A4A] hover:bg-yellow-600 text-black px-5 py-3 rounded-xl font-black transition-all disabled:opacity-60"
+              >
+                {salvandoObservacao
+                  ? "SALVANDO..."
+                  : "SALVAR OBSERVAÇÃO"}
+              </button>
+            </div>
 
             <Secao titulo="Pagamento e anexos" colunas="md:grid-cols-3">
               <Anexo titulo="Foto" url={item.foto_url} textoBotao="Abrir foto" />
@@ -1178,6 +1405,7 @@ function Secao({
   return (
     <div className="bg-[#090909] border border-[#2A2A2A] rounded-[28px] p-5">
       <h3 className="text-2xl font-black text-[#C79A4A] mb-5">{titulo}</h3>
+
       <div className={`grid ${colunas} gap-4`}>{children}</div>
     </div>
   );
@@ -1187,6 +1415,7 @@ function Campo({ label, valor }: { label: string; valor?: string }) {
   return (
     <div className="bg-[#121212] border border-[#2A2A2A] rounded-2xl p-4">
       <p className="text-gray-500 text-sm mb-1">{label}</p>
+
       <p className="text-white font-bold break-words whitespace-pre-wrap">
         {valor || "-"}
       </p>

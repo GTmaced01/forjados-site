@@ -5,9 +5,13 @@ import { Inter } from 'next/font/google';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://forjados-site.vercel.app'),
+
   title: 'FORJADOS — Retiro de Cura e Restauração',
+
   description:
     'A forja não era para te destruir. Era para te transformar. Um retiro de cura, perdão, identidade e restauração em Deus.',
+
   openGraph: {
     title: 'FORJADOS — Retiro de Cura e Restauração',
     description:
@@ -18,19 +22,25 @@ export const metadata: Metadata = {
     type: 'website',
     images: [
       {
-        url: 'https://forjados-site.vercel.app/opengraph-image.png',
+        url: '/opengraph-image.png',
         width: 1200,
         height: 630,
         alt: 'FORJADOS — Retiro de Cura e Restauração',
       },
     ],
   },
+
   twitter: {
     card: 'summary_large_image',
     title: 'FORJADOS — Retiro de Cura e Restauração',
     description:
       'A forja não era para te destruir. Era para te transformar.',
-    images: ['https://forjados-site.vercel.app/opengraph-image.png'],
+    images: ['/opengraph-image.png'],
+  },
+
+  icons: {
+    icon: '/logo-forjados.png',
+    apple: '/logo-forjados.png',
   },
 };
 
@@ -40,7 +50,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="pt-BR">
       <body className={inter.className}>{children}</body>
     </html>
   );
