@@ -10,6 +10,7 @@ export default function InscricaoPage() {
   const [dataNascimento, setDataNascimento] = useState("");
   const [cpf, setCpf] = useState("");
   const [congrega, setCongrega] = useState("");
+  const [aceitouPolitica, setAceitouPolitica] = useState(false);
   const [mensagem, setMensagem] = useState("");
 
   function limparCPF(valor: string) {
@@ -160,6 +161,12 @@ export default function InscricaoPage() {
 
     setMensagem("");
     setCarregando(true);
+
+    if (!aceitouPolitica) {
+      alert("Você precisa aceitar a Política de Privacidade para finalizar a inscrição.");
+      setCarregando(false);
+      return;
+    }
 
     try {
       const form = event.currentTarget;
@@ -330,6 +337,7 @@ export default function InscricaoPage() {
       setDataNascimento("");
       setCpf("");
       setCongrega("");
+      setAceitouPolitica(false);
     } catch (error) {
       console.error(error);
       setCarregando(false);
@@ -662,6 +670,31 @@ export default function InscricaoPage() {
               Envie o comprovante do Pix ou pagamento. Pode ser imagem ou PDF.
             </p>
           </div>
+
+          <label className="bg-[#0F0F10] border border-[#2A2A2A] rounded-2xl p-5 flex items-start gap-4 cursor-pointer">
+  <input
+    type="checkbox"
+    checked={aceitouPolitica}
+    onChange={(e) => setAceitouPolitica(e.target.checked)}
+    required
+    className="mt-1 w-5 h-5 accent-[#C79A4A]"
+  />
+
+  <span className="text-gray-400 text-sm leading-relaxed">
+    Li e concordo com a{" "}
+    <a
+      href="/politica-de-privacidade"
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-[#C79A4A] font-bold hover:text-yellow-500"
+      onClick={(e) => e.stopPropagation()}
+    >
+      Política de Privacidade
+    </a>{" "}
+    do Projeto FORJADOS e autorizo o uso dos dados informados para fins de
+    inscrição, organização, comunicação, segurança e acompanhamento do projeto.
+  </span>
+</label>
 
           <button
             type="submit"
