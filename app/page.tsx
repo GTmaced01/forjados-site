@@ -347,91 +347,86 @@ export default function Home() {
       </section>
 
       {/* FOOTER */}
-      <footer className="border-t border-[#2A2A2A] py-10 px-4 sm:px-6 bg-black">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-8">
-          <div className="text-center md:text-left">
-            <div className="flex items-center justify-center md:justify-start gap-3">
-              <img
-                src="/logo-forjados.png"
-                alt="Logo FORJADOS"
-                className="w-[55px] h-auto"
-              />
+<footer className="border-t border-[#2A2A2A] py-10 px-4 sm:px-6 bg-black">
+  <div className="max-w-6xl mx-auto flex flex-col items-center justify-center gap-6 text-center">
+    <div className="flex items-center justify-center gap-3">
+      <img
+        src="/logo-forjados.png"
+        alt="Logo FORJADOS"
+        className="w-[55px] h-auto"
+      />
 
-              <h3 className="text-3xl font-black text-[#C79A4A] uppercase">
-                FORJADOS
-              </h3>
-            </div>
+      <h3 className="text-3xl font-black text-[#C79A4A] uppercase">
+        FORJADOS
+      </h3>
+    </div>
 
-            <p className="text-gray-500 mt-2">
-              Igreja Evangélica Sal da Terra
-            </p>
+    <p className="text-gray-500">
+      Igreja Evangélica Sal da Terra
+    </p>
 
-            <div className="flex items-center justify-center md:justify-start gap-4 mt-4">
-              <a
-                href="https://www.instagram.com/forjadosoficial_?igsh=cDluOW1jbG90NTli"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Instagram FORJADOS"
-                className="w-11 h-11 rounded-full border border-[#2A2A2A] hover:border-[#C79A4A] flex items-center justify-center transition-all"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="#C79A4A"
-                  strokeWidth="1.8"
-                  className="w-5 h-5"
-                >
-                  <rect x="3" y="3" width="18" height="18" rx="5"></rect>
-                  <circle cx="12" cy="12" r="4"></circle>
-                  <circle cx="17.5" cy="6.5" r="1"></circle>
-                </svg>
-              </a>
+    <div className="flex items-center justify-center gap-4">
+      <a
+        href="https://www.instagram.com/forjadosoficial_?igsh=cDluOW1jbG90NTli"
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="Instagram FORJADOS"
+        className="w-11 h-11 rounded-full border border-[#2A2A2A] hover:border-[#C79A4A] flex items-center justify-center transition-all"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="#C79A4A"
+          strokeWidth="1.8"
+          className="w-5 h-5"
+        >
+          <rect x="3" y="3" width="18" height="18" rx="5"></rect>
+          <circle cx="12" cy="12" r="4"></circle>
+          <circle cx="17.5" cy="6.5" r="1"></circle>
+        </svg>
+      </a>
 
-              <a
-                href="https://www.tiktok.com/@forjados.oficiall?_r=1&_t=ZS-96Lxhdr0HH3"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="TikTok FORJADOS"
-                className="w-11 h-11 rounded-full border border-[#2A2A2A] hover:border-[#C79A4A] flex items-center justify-center transition-all"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="#C79A4A"
-                  className="w-5 h-5"
-                >
-                  <path d="M16.5 3c.3 1.8 1.4 3.2 3 4.1v2.6c-1.2 0-2.4-.4-3.4-1v6.2c0 3-2.3 5.1-5.3 5.1S5.5 17.9 5.5 15s2.3-5.1 5.3-5.1c.2 0 .5 0 .7.1v2.7c-.2-.1-.5-.1-.7-.1-1.5 0-2.6 1-2.6 2.4s1.1 2.4 2.6 2.4 2.5-1 2.5-2.5V3h3.2z" />
-                </svg>
-              </a>
-            </div>
-          </div>
+      <a
+        href="https://www.tiktok.com/@forjados.oficiall?_r=1&_t=ZS-96Lxhdr0HH3"
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="TikTok FORJADOS"
+        className="w-11 h-11 rounded-full border border-[#2A2A2A] hover:border-[#C79A4A] flex items-center justify-center transition-all"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="#C79A4A"
+          className="w-5 h-5"
+        >
+          <path d="M16.5 3c.3 1.8 1.4 3.2 3 4.1v2.6c-1.2 0-2.4-.4-3.4-1v6.2c0 3-2.3 5.1-5.3 5.1S5.5 17.9 5.5 15s2.3-5.1 5.3-5.1c.2 0 .5 0 .7.1v2.7c-.2-.1-.5-.1-.7-.1-1.5 0-2.6 1-2.6 2.4s1.1 2.4 2.6 2.4 2.5-1 2.5-2.5V3h3.2z" />
+        </svg>
+      </a>
+    </div>
 
-          <div className="text-gray-500 text-sm text-center md:text-right space-y-1">
-  <p>forjadosoficial.com.br</p>
-  <p>forjados.ofc@gmail.com</p>
+    <div className="text-gray-500 text-sm space-y-1">
+      <p>forjadosoficial.com.br</p>
+      <p>forjados.ofc@gmail.com</p>
+    </div>
 
-  <div className="text-gray-500 text-sm text-center md:text-right space-y-1">
-  <p>forjadosoficial.com.br</p>
-  <p>forjados.ofc@gmail.com</p>
+    <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-5 text-sm font-bold">
+      <a
+        href="/politica-de-privacidade"
+        className="text-[#C79A4A] hover:text-yellow-500 transition-all"
+      >
+        Política de Privacidade
+      </a>
 
-  <a
-    href="/politica-de-privacidade"
-    className="block text-[#C79A4A] hover:text-yellow-500 transition-all font-bold"
-  >
-    Política de Privacidade
-  </a>
-
-  <a
-    href="/termo-de-ciencia"
-    className="block text-[#C79A4A] hover:text-yellow-500 transition-all font-bold"
-  >
-    Termo de Ciência e Participação
-  </a>
-</div>
-</div>
-        </div>
-      </footer>
+      <a
+        href="/termo-de-ciencia"
+        className="text-[#C79A4A] hover:text-yellow-500 transition-all"
+      >
+        Termo de Ciência e Participação
+      </a>
+    </div>
+  </div>
+</footer>
     </main>
   );
 }
