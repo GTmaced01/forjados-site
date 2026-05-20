@@ -14,10 +14,9 @@ export default function InscricaoPage() {
 
   const [aceitouTermo, setAceitouTermo] = useState(false);
   const [aceitouPolitica, setAceitouPolitica] = useState(false);
-  const [aceitouResponsabilidadeSaude, setAceitouResponsabilidadeSaude] =
-    useState(false);
-  const [aceitouDinamicas, setAceitouDinamicas] = useState(false);
-  const [aceitouEmergencia, setAceitouEmergencia] = useState(false);
+  
+  
+  
   const [autorizaUsoImagem, setAutorizaUsoImagem] = useState(false);
 
   const [mensagem, setMensagem] = useState("");
@@ -172,35 +171,14 @@ export default function InscricaoPage() {
       );
       return false;
     }
-
-    if (!aceitouResponsabilidadeSaude) {
-      alert(
-        "Você precisa declarar que está em condições físicas, emocionais e psicológicas adequadas para participar."
-      );
-      return false;
-    }
-
-    if (!aceitouDinamicas) {
-      alert(
-        "Você precisa confirmar ciência sobre as dinâmicas e momentos de reflexão do Projeto FORJADOS."
-      );
-      return false;
-    }
-
-    if (!aceitouEmergencia) {
-      alert(
-        "Você precisa autorizar o acionamento de contato de emergência ou atendimento médico em caso de necessidade."
-      );
-      return false;
-    }
-
+  
     if (!aceitouPolitica) {
       alert(
         "Você precisa aceitar a Política de Privacidade para finalizar a inscrição."
       );
       return false;
     }
-
+  
     return true;
   }
 
@@ -374,11 +352,8 @@ export default function InscricaoPage() {
         observacao_admin: "",
 
         aceitou_termo: aceitouTermo,
-        aceitou_politica: aceitouPolitica,
-        aceitou_responsabilidade_saude: aceitouResponsabilidadeSaude,
-        aceitou_dinamicas: aceitouDinamicas,
-        aceitou_emergencia: aceitouEmergencia,
-        autoriza_uso_imagem: autorizaUsoImagem,
+aceitou_politica: aceitouPolitica,
+autoriza_uso_imagem: autorizaUsoImagem,
       };
 
       const { error } = await supabase.from("inscritos").insert(inscrito);
@@ -404,9 +379,7 @@ export default function InscricaoPage() {
       setGestante("");
       setAceitouTermo(false);
       setAceitouPolitica(false);
-      setAceitouResponsabilidadeSaude(false);
-      setAceitouDinamicas(false);
-      setAceitouEmergencia(false);
+    
       setAutorizaUsoImagem(false);
     } catch (error) {
       console.error(error);
@@ -770,87 +743,58 @@ export default function InscricaoPage() {
           </div>
 
           <div className="bg-[#0F0F10] border border-[#2A2A2A] rounded-2xl p-5 space-y-4">
-            <h2 className="text-2xl font-black text-[#C79A4A]">
-              Termos e autorizações
-            </h2>
+  <h2 className="text-2xl font-black text-[#C79A4A]">
+    Termos e autorizações
+  </h2>
 
-            <CheckboxTermo
-              checked={aceitouTermo}
-              onChange={setAceitouTermo}
-              obrigatorio
-            >
-              Declaro que li, compreendi e aceito o{" "}
-              <a
-                href="/termo-de-ciencia"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[#C79A4A] font-bold hover:text-yellow-500"
-                onClick={(e) => e.stopPropagation()}
-              >
-                Termo de Ciência, Responsabilidade e Participação
-              </a>{" "}
-              do Projeto FORJADOS.
-            </CheckboxTermo>
+  <CheckboxTermo
+    checked={aceitouTermo}
+    onChange={setAceitouTermo}
+    obrigatorio
+  >
+    Declaro que li, compreendi e aceito o{" "}
+    <a
+      href="/termo-de-ciencia"
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-[#C79A4A] font-bold hover:text-yellow-500"
+      onClick={(e) => e.stopPropagation()}
+    >
+      Termo de Ciência, Responsabilidade e Participação
+    </a>{" "}
+    do Projeto FORJADOS.
+  </CheckboxTermo>
 
-            <CheckboxTermo
-              checked={aceitouResponsabilidadeSaude}
-              onChange={setAceitouResponsabilidadeSaude}
-              obrigatorio
-            >
-              Declaro estar em condições físicas, emocionais e psicológicas
-              adequadas para participar do evento e afirmo que as informações
-              fornecidas por mim são verdadeiras.
-            </CheckboxTermo>
+  <CheckboxTermo
+    checked={aceitouPolitica}
+    onChange={setAceitouPolitica}
+    obrigatorio
+  >
+    Declaro que li e concordo com a{" "}
+    <a
+      href="/politica-de-privacidade"
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-[#C79A4A] font-bold hover:text-yellow-500"
+      onClick={(e) => e.stopPropagation()}
+    >
+      Política de Privacidade
+    </a>{" "}
+    do Projeto FORJADOS.
+  </CheckboxTermo>
 
-            <CheckboxTermo
-              checked={aceitouDinamicas}
-              onChange={setAceitouDinamicas}
-              obrigatorio
-            >
-              Estou ciente de que o Projeto FORJADOS envolve momentos de
-              reflexão intensa, dinâmicas vivenciais, pressão emocional
-              controlada, desafios moderados e limitação temporária de conforto.
-            </CheckboxTermo>
-
-            <CheckboxTermo
-              checked={aceitouEmergencia}
-              onChange={setAceitouEmergencia}
-              obrigatorio
-            >
-              Autorizo, em caso de necessidade, que a organização acione serviços
-              de emergência, contato familiar indicado ou atendimento médico.
-            </CheckboxTermo>
-
-            <CheckboxTermo
-              checked={aceitouPolitica}
-              onChange={setAceitouPolitica}
-              obrigatorio
-            >
-              Declaro que li e concordo com a{" "}
-              <a
-                href="/politica-de-privacidade"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[#C79A4A] font-bold hover:text-yellow-500"
-                onClick={(e) => e.stopPropagation()}
-              >
-                Política de Privacidade
-              </a>{" "}
-              do Projeto FORJADOS.
-            </CheckboxTermo>
-
-            <CheckboxTermo
-              checked={autorizaUsoImagem}
-              onChange={setAutorizaUsoImagem}
-            >
-              Autorizo o uso da minha imagem, voz e depoimentos para divulgação
-              institucional do Projeto FORJADOS em redes sociais, vídeos, fotos,
-              testemunhos e materiais de comunicação.{" "}
-              <span className="text-gray-500 font-normal">
-                Esta autorização é opcional.
-              </span>
-            </CheckboxTermo>
-          </div>
+  <CheckboxTermo
+    checked={autorizaUsoImagem}
+    onChange={setAutorizaUsoImagem}
+  >
+    Autorizo o uso da minha imagem, voz e depoimentos para divulgação
+    institucional do Projeto FORJADOS em redes sociais, vídeos, fotos,
+    testemunhos e materiais de comunicação.{" "}
+    <span className="text-gray-500 font-normal">
+      Esta autorização é opcional.
+    </span>
+  </CheckboxTermo>
+</div>
 
           <button
             type="submit"

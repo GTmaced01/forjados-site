@@ -15,6 +15,11 @@ type Inscrito = {
   igreja: string;
   camisa: string;
 
+  gestante: string;
+  aceitou_termo: boolean;
+  aceitou_politica: boolean;
+  autoriza_uso_imagem: boolean;
+
   alergias: string;
   medicamentos: string;
   condicao_saude: string;
@@ -39,7 +44,10 @@ type FiltroStatus =
   | "menores"
   | "aniversariantes";
 
-function calcularIdadePorNascimento(dataNascimento?: string, idadeAntiga?: string) {
+function calcularIdadePorNascimento(
+  dataNascimento?: string,
+  idadeAntiga?: string
+) {
   if (!dataNascimento) {
     return Number(idadeAntiga || 0);
   }
@@ -103,6 +111,20 @@ function ehAniversarianteHoje(dataNascimento?: string) {
     nascimento.getDate() === hoje.getDate() &&
     nascimento.getMonth() === hoje.getMonth()
   );
+}
+
+function simNao(valor?: boolean | string) {
+  if (valor === true) return "Sim";
+  if (valor === "sim") return "Sim";
+  if (valor === "true") return "Sim";
+
+  return "Não";
+}
+
+function textoGestante(valor?: string) {
+  if (valor === "sim") return "Sim";
+  if (valor === "nao") return "Não";
+  return "-";
 }
 
 export default function AdminPage() {
@@ -351,6 +373,8 @@ export default function AdminPage() {
       item.igreja?.toLowerCase().includes(texto) ||
       item.camisa?.toLowerCase().includes(texto) ||
       item.pagamento_status?.toLowerCase().includes(texto) ||
+      textoGestante(item.gestante).toLowerCase().includes(texto) ||
+      simNao(item.autoriza_uso_imagem).toLowerCase().includes(texto) ||
       formatarDataNascimento(item.data_nascimento).toLowerCase().includes(texto);
 
     const statusNormalizado =
@@ -383,6 +407,10 @@ export default function AdminPage() {
       "Idade",
       "Igreja",
       "Camisa",
+      "Gestante",
+      "Autorizou uso de imagem",
+      "Aceitou termo",
+      "Aceitou politica",
       "Alergias",
       "Medicamentos",
       "Condicao de saude",
@@ -407,6 +435,10 @@ export default function AdminPage() {
       String(calcularIdadePorNascimento(item.data_nascimento, item.idade)),
       item.igreja,
       item.camisa,
+      textoGestante(item.gestante),
+      simNao(item.autoriza_uso_imagem),
+      simNao(item.aceitou_termo),
+      simNao(item.aceitou_politica),
       item.alergias,
       item.medicamentos,
       item.condicao_saude,
@@ -589,7 +621,7 @@ export default function AdminPage() {
 
                 <p className="text-gray-400 mt-2 max-w-2xl">
                   Gerencie inscrições, saúde, anexos, comprovantes, menores de
-                  idade, aniversários e status de pagamento.
+                  idade, aniversários, autorizações, termos e status de pagamento.
                 </p>
               </div>
             </div>
@@ -744,7 +776,7 @@ export default function AdminPage() {
           <div className="flex flex-col gap-4">
             <input
               type="text"
-              placeholder="Buscar por nome, CPF, telefone, e-mail, igreja, camisa, nascimento ou status..."
+              placeholder="Buscar por nome, CPF, telefone, e-mail, igreja, camisa, nascimento, status, gestante ou imagem..."
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
               className="w-full bg-[#090909] border border-[#2A2A2A] rounded-2xl px-5 py-4 outline-none focus:border-[#C79A4A]"
@@ -825,6 +857,8 @@ export default function AdminPage() {
                   <th className="p-4 text-left">WhatsApp</th>
                   <th className="p-4 text-left">Igreja</th>
                   <th className="p-4 text-left">Camisa</th>
+                  <th className="p-4 text-left">Gestante</th>
+                  <th className="p-4 text-left">Imagem</th>
                   <th className="p-4 text-left">Comprovante</th>
                   <th className="p-4 text-left">Autorização</th>
                   <th className="p-4 text-left">Status</th>
@@ -929,6 +963,30 @@ export default function AdminPage() {
                       </td>
 
                       <td className="p-4 font-bold">{item.camisa || "-"}</td>
+
+                      <td className="p-4">
+                        <span
+                          className={
+                            item.gestante === "sim"
+                              ? "text-red-400 font-black"
+                              : "text-gray-300"
+                          }
+                        >
+                          {textoGestante(item.gestante)}
+                        </span>
+                      </td>
+
+                      <td className="p-4">
+                        <span
+                          className={
+                            item.autoriza_uso_imagem
+                              ? "text-green-400 font-black"
+                              : "text-gray-500"
+                          }
+                        >
+                          {simNao(item.autoriza_uso_imagem)}
+                        </span>
+                      </td>
 
                       <td className="p-4">
                         {item.comprovante_url ? (
@@ -1109,7 +1167,7 @@ function FichaCompleta({
             </h2>
 
             <p className="text-gray-400 mt-2">
-              Dados pessoais, saúde, pagamento, anexos e contato.
+              Dados pessoais, saúde, termos, pagamento, anexos e contato.
             </p>
           </div>
 
@@ -1148,6 +1206,28 @@ function FichaCompleta({
 
                 <p className="text-gray-400 text-sm mt-1">
                   Verificar autorização assinada.
+                </p>
+              </div>
+            )}
+
+            {item.gestante === "sim" && (
+              <div className="mt-4 bg-red-500/10 border border-red-500/40 rounded-2xl p-4">
+                <p className="text-red-400 font-black">Gestante</p>
+
+                <p className="text-gray-400 text-sm mt-1">
+                  Atenção: a ficha indicou gestante.
+                </p>
+              </div>
+            )}
+
+            {item.autoriza_uso_imagem && (
+              <div className="mt-4 bg-green-500/10 border border-green-500/40 rounded-2xl p-4">
+                <p className="text-green-400 font-black">
+                  Autorizou uso de imagem
+                </p>
+
+                <p className="text-gray-400 text-sm mt-1">
+                  Participante autorizou uso de imagem, voz e depoimentos.
                 </p>
               </div>
             )}
@@ -1252,10 +1332,34 @@ function FichaCompleta({
 
               <Campo label="Igreja" valor={item.igreja} />
               <Campo label="Camisa" valor={item.camisa} />
+              <Campo label="Gestante" valor={textoGestante(item.gestante)} />
+
+              <Campo
+                label="Autorizou uso de imagem"
+                valor={simNao(item.autoriza_uso_imagem)}
+              />
 
               <Campo
                 label="Data da inscrição"
                 valor={formatarData(item.created_at)}
+              />
+            </Secao>
+
+            <Secao titulo="Termos e autorizações">
+              <Campo
+                label="Aceitou Termo de Ciência"
+                valor={simNao(item.aceitou_termo)}
+              />
+
+              <Campo
+                label="Aceitou Política de Privacidade"
+                valor={simNao(item.aceitou_politica)}
+              />
+
+
+              <Campo
+                label="Autorizou uso de imagem, voz e depoimentos"
+                valor={simNao(item.autoriza_uso_imagem)}
               />
             </Secao>
 

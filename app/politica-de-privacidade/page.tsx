@@ -1,5 +1,7 @@
 "use client";
 
+import type { ReactNode } from "react";
+
 export default function PoliticaDePrivacidadePage() {
   function voltarParaFicha() {
     window.close();
@@ -377,7 +379,7 @@ function Secao({
   children,
 }: {
   titulo: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <section>
