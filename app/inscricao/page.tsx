@@ -10,7 +10,16 @@ export default function InscricaoPage() {
   const [dataNascimento, setDataNascimento] = useState("");
   const [cpf, setCpf] = useState("");
   const [congrega, setCongrega] = useState("");
+  const [gestante, setGestante] = useState("");
+
+  const [aceitouTermo, setAceitouTermo] = useState(false);
   const [aceitouPolitica, setAceitouPolitica] = useState(false);
+  const [aceitouResponsabilidadeSaude, setAceitouResponsabilidadeSaude] =
+    useState(false);
+  const [aceitouDinamicas, setAceitouDinamicas] = useState(false);
+  const [aceitouEmergencia, setAceitouEmergencia] = useState(false);
+  const [autorizaUsoImagem, setAutorizaUsoImagem] = useState(false);
+
   const [mensagem, setMensagem] = useState("");
 
   function limparCPF(valor: string) {
@@ -156,14 +165,52 @@ export default function InscricaoPage() {
     window.open(`https://wa.me/${numeroAdmin}?text=${texto}`, "_blank");
   }
 
+  function validarAceitesObrigatorios() {
+    if (!aceitouTermo) {
+      alert(
+        "Você precisa aceitar o Termo de Ciência, Responsabilidade e Participação para finalizar a inscrição."
+      );
+      return false;
+    }
+
+    if (!aceitouResponsabilidadeSaude) {
+      alert(
+        "Você precisa declarar que está em condições físicas, emocionais e psicológicas adequadas para participar."
+      );
+      return false;
+    }
+
+    if (!aceitouDinamicas) {
+      alert(
+        "Você precisa confirmar ciência sobre as dinâmicas e momentos de reflexão do Projeto FORJADOS."
+      );
+      return false;
+    }
+
+    if (!aceitouEmergencia) {
+      alert(
+        "Você precisa autorizar o acionamento de contato de emergência ou atendimento médico em caso de necessidade."
+      );
+      return false;
+    }
+
+    if (!aceitouPolitica) {
+      alert(
+        "Você precisa aceitar a Política de Privacidade para finalizar a inscrição."
+      );
+      return false;
+    }
+
+    return true;
+  }
+
   async function enviarFormulario(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     setMensagem("");
     setCarregando(true);
 
-    if (!aceitouPolitica) {
-      alert("Você precisa aceitar a Política de Privacidade para finalizar a inscrição.");
+    if (!validarAceitesObrigatorios()) {
       setCarregando(false);
       return;
     }
@@ -186,6 +233,7 @@ export default function InscricaoPage() {
         { nome: "endereco", label: "Endereço" },
         { nome: "data_nascimento", label: "Data de nascimento" },
         { nome: "congrega", label: "Congrega em alguma igreja?" },
+        { nome: "gestante", label: "Está grávida?" },
         { nome: "camisa", label: "Tamanho da camisa" },
         { nome: "alergias", label: "Alergias" },
         { nome: "medicamentos", label: "Medicamentos" },
@@ -219,6 +267,14 @@ export default function InscricaoPage() {
 
       if (!validarDataNascimento(dataNascimentoInformada)) {
         alert("Informe uma data de nascimento válida.");
+        setCarregando(false);
+        return;
+      }
+
+      if (String(dados.get("gestante")) === "sim") {
+        alert(
+          "Mulheres grávidas não poderão participar do Projeto FORJADOS, conforme o Termo de Ciência. Em caso de dúvida, entre em contato com a organização."
+        );
         setCarregando(false);
         return;
       }
@@ -296,6 +352,7 @@ export default function InscricaoPage() {
             ? String(dados.get("igreja"))
             : "Não congrega",
 
+        gestante: String(dados.get("gestante")),
         camisa: String(dados.get("camisa")),
 
         alergias: String(dados.get("alergias")),
@@ -315,6 +372,13 @@ export default function InscricaoPage() {
 
         pagamento_status: "pendente",
         observacao_admin: "",
+
+        aceitou_termo: aceitouTermo,
+        aceitou_politica: aceitouPolitica,
+        aceitou_responsabilidade_saude: aceitouResponsabilidadeSaude,
+        aceitou_dinamicas: aceitouDinamicas,
+        aceitou_emergencia: aceitouEmergencia,
+        autoriza_uso_imagem: autorizaUsoImagem,
       };
 
       const { error } = await supabase.from("inscritos").insert(inscrito);
@@ -337,7 +401,13 @@ export default function InscricaoPage() {
       setDataNascimento("");
       setCpf("");
       setCongrega("");
+      setGestante("");
+      setAceitouTermo(false);
       setAceitouPolitica(false);
+      setAceitouResponsabilidadeSaude(false);
+      setAceitouDinamicas(false);
+      setAceitouEmergencia(false);
+      setAutorizaUsoImagem(false);
     } catch (error) {
       console.error(error);
       setCarregando(false);
@@ -515,6 +585,34 @@ export default function InscricaoPage() {
               )}
             </div>
 
+            <div>
+              <label className="block text-gray-400 mb-2">
+                Está grávida?
+              </label>
+
+              <select
+                name="gestante"
+                required
+                value={gestante}
+                onChange={(e) => setGestante(e.target.value)}
+                className="w-full bg-[#0F0F10] border border-[#2A2A2A] rounded-2xl px-5 py-4 outline-none focus:border-[#C79A4A]"
+              >
+                <option value="">Selecione uma opção</option>
+                <option value="nao">Não</option>
+                <option value="sim">Sim</option>
+              </select>
+
+              {gestante === "sim" && (
+                <div className="mt-4 bg-[#B71C1C]/10 border border-[#B71C1C]/40 rounded-2xl p-4">
+                  <p className="text-red-300 font-bold">
+                    Conforme o Termo de Ciência, mulheres grávidas não poderão
+                    participar do Projeto FORJADOS. Entre em contato com a
+                    organização em caso de dúvida.
+                  </p>
+                </div>
+              )}
+            </div>
+
             {ehMenor && (
               <div className="bg-[#0F0F10] border border-[#C79A4A] rounded-2xl p-5">
                 <h3 className="text-xl font-black text-[#C79A4A] mb-2">
@@ -671,30 +769,88 @@ export default function InscricaoPage() {
             </p>
           </div>
 
-          <label className="bg-[#0F0F10] border border-[#2A2A2A] rounded-2xl p-5 flex items-start gap-4 cursor-pointer">
-  <input
-    type="checkbox"
-    checked={aceitouPolitica}
-    onChange={(e) => setAceitouPolitica(e.target.checked)}
-    required
-    className="mt-1 w-5 h-5 accent-[#C79A4A]"
-  />
+          <div className="bg-[#0F0F10] border border-[#2A2A2A] rounded-2xl p-5 space-y-4">
+            <h2 className="text-2xl font-black text-[#C79A4A]">
+              Termos e autorizações
+            </h2>
 
-  <span className="text-gray-400 text-sm leading-relaxed">
-    Li e concordo com a{" "}
-    <a
-      href="/politica-de-privacidade"
-      target="_blank"
-      rel="noopener noreferrer"
-      className="text-[#C79A4A] font-bold hover:text-yellow-500"
-      onClick={(e) => e.stopPropagation()}
-    >
-      Política de Privacidade
-    </a>{" "}
-    do Projeto FORJADOS e autorizo o uso dos dados informados para fins de
-    inscrição, organização, comunicação, segurança e acompanhamento do projeto.
-  </span>
-</label>
+            <CheckboxTermo
+              checked={aceitouTermo}
+              onChange={setAceitouTermo}
+              obrigatorio
+            >
+              Declaro que li, compreendi e aceito o{" "}
+              <a
+                href="/termo-de-ciencia"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[#C79A4A] font-bold hover:text-yellow-500"
+                onClick={(e) => e.stopPropagation()}
+              >
+                Termo de Ciência, Responsabilidade e Participação
+              </a>{" "}
+              do Projeto FORJADOS.
+            </CheckboxTermo>
+
+            <CheckboxTermo
+              checked={aceitouResponsabilidadeSaude}
+              onChange={setAceitouResponsabilidadeSaude}
+              obrigatorio
+            >
+              Declaro estar em condições físicas, emocionais e psicológicas
+              adequadas para participar do evento e afirmo que as informações
+              fornecidas por mim são verdadeiras.
+            </CheckboxTermo>
+
+            <CheckboxTermo
+              checked={aceitouDinamicas}
+              onChange={setAceitouDinamicas}
+              obrigatorio
+            >
+              Estou ciente de que o Projeto FORJADOS envolve momentos de
+              reflexão intensa, dinâmicas vivenciais, pressão emocional
+              controlada, desafios moderados e limitação temporária de conforto.
+            </CheckboxTermo>
+
+            <CheckboxTermo
+              checked={aceitouEmergencia}
+              onChange={setAceitouEmergencia}
+              obrigatorio
+            >
+              Autorizo, em caso de necessidade, que a organização acione serviços
+              de emergência, contato familiar indicado ou atendimento médico.
+            </CheckboxTermo>
+
+            <CheckboxTermo
+              checked={aceitouPolitica}
+              onChange={setAceitouPolitica}
+              obrigatorio
+            >
+              Declaro que li e concordo com a{" "}
+              <a
+                href="/politica-de-privacidade"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[#C79A4A] font-bold hover:text-yellow-500"
+                onClick={(e) => e.stopPropagation()}
+              >
+                Política de Privacidade
+              </a>{" "}
+              do Projeto FORJADOS.
+            </CheckboxTermo>
+
+            <CheckboxTermo
+              checked={autorizaUsoImagem}
+              onChange={setAutorizaUsoImagem}
+            >
+              Autorizo o uso da minha imagem, voz e depoimentos para divulgação
+              institucional do Projeto FORJADOS em redes sociais, vídeos, fotos,
+              testemunhos e materiais de comunicação.{" "}
+              <span className="text-gray-500 font-normal">
+                Esta autorização é opcional.
+              </span>
+            </CheckboxTermo>
+          </div>
 
           <button
             type="submit"
@@ -710,5 +866,36 @@ export default function InscricaoPage() {
         </form>
       </section>
     </main>
+  );
+}
+
+function CheckboxTermo({
+  checked,
+  onChange,
+  children,
+  obrigatorio = false,
+}: {
+  checked: boolean;
+  onChange: (value: boolean) => void;
+  children: React.ReactNode;
+  obrigatorio?: boolean;
+}) {
+  return (
+    <label className="flex items-start gap-4 cursor-pointer bg-[#111111] border border-[#2A2A2A] rounded-2xl p-4">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        required={obrigatorio}
+        className="mt-1 w-5 h-5 accent-[#C79A4A] shrink-0"
+      />
+
+      <span className="text-gray-400 text-sm leading-relaxed">
+        {children}
+        {obrigatorio && (
+          <span className="text-[#C79A4A] font-bold"> *</span>
+        )}
+      </span>
+    </label>
   );
 }

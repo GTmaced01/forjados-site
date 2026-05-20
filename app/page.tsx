@@ -411,12 +411,24 @@ export default function Home() {
   <p>forjadosoficial.com.br</p>
   <p>forjados.ofc@gmail.com</p>
 
+  <div className="text-gray-500 text-sm text-center md:text-right space-y-1">
+  <p>forjadosoficial.com.br</p>
+  <p>forjados.ofc@gmail.com</p>
+
   <a
     href="/politica-de-privacidade"
-    className="inline-block text-[#C79A4A] hover:text-yellow-500 transition-all font-bold"
+    className="block text-[#C79A4A] hover:text-yellow-500 transition-all font-bold"
   >
     Política de Privacidade
   </a>
+
+  <a
+    href="/termo-de-ciencia"
+    className="block text-[#C79A4A] hover:text-yellow-500 transition-all font-bold"
+  >
+    Termo de Ciência e Participação
+  </a>
+</div>
 </div>
         </div>
       </footer>
