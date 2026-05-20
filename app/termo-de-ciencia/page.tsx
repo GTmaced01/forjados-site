@@ -1,4 +1,15 @@
+"use client";
+
 export default function TermoDeCienciaPage() {
+  function voltarParaFicha() {
+    window.close();
+  
+    setTimeout(() => {
+      alert(
+        "Se esta aba não fechar automaticamente, feche ela manualmente e volte para a aba da ficha. Os dados preenchidos continuam lá."
+      );
+    }, 300);
+  }
   return (
     <main className="min-h-screen bg-[#0F0F10] text-white px-6 py-20">
       <section className="max-w-4xl mx-auto">
@@ -410,12 +421,13 @@ export default function TermoDeCienciaPage() {
             VOLTAR PARA O SITE
           </a>
 
-          <a
-            href="/inscricao"
-            className="inline-block bg-[#121212] border border-[#2A2A2A] hover:border-[#C79A4A] transition-all text-white px-6 py-4 rounded-2xl font-black"
-          >
-            IR PARA INSCRIÇÃO
-          </a>
+          <button
+  type="button"
+  onClick={voltarParaFicha}
+  className="inline-block bg-[#121212] border border-[#2A2A2A] hover:border-[#C79A4A] transition-all text-white px-6 py-4 rounded-2xl font-black"
+>
+  VOLTAR PARA A FICHA
+</button>
         </div>
       </section>
     </main>
