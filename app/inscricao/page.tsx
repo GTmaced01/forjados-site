@@ -3,8 +3,6 @@
 import { useState } from "react";
 import { supabase } from "../lib/supabase";
 
-const WHATSAPP_ADMIN = "5521990571370";
-
 export default function InscricaoPage() {
   const [carregando, setCarregando] = useState(false);
   const [dataNascimento, setDataNascimento] = useState("");
@@ -152,17 +150,6 @@ export default function InscricaoPage() {
     return data.publicUrl;
   }
 
-  function abrirNotificacaoWhatsAppAdmin(nome: string, telefone: string) {
-    if (!WHATSAPP_ADMIN.trim()) return;
-
-    const numeroAdmin = WHATSAPP_ADMIN.replace(/\D/g, "");
-
-    if (!numeroAdmin) return;
-
-    const texto = `Nova ficha recebida no FORJADOS.%0A%0ANome: ${nome}%0ATelefone: ${telefone}%0A%0AAcesse o painel admin para conferir.`;
-
-    window.open(`https://wa.me/${numeroAdmin}?text=${texto}`, "_blank");
-  }
 
   function validarAceitesObrigatorios() {
     if (!aceitouTermo) {
@@ -209,6 +196,7 @@ export default function InscricaoPage() {
         { nome: "telefone", label: "WhatsApp" },
         { nome: "email", label: "E-mail" },
         { nome: "endereco", label: "Endereço" },
+        { nome: "cidade", label: "Cidade" },
         { nome: "data_nascimento", label: "Data de nascimento" },
         { nome: "congrega", label: "Congrega em alguma igreja?" },
         { nome: "gestante", label: "Está grávida?" },
@@ -322,6 +310,7 @@ export default function InscricaoPage() {
         telefone,
         email: String(dados.get("email")),
         endereco: String(dados.get("endereco")),
+        cidade: String(dados.get("cidade")),
         data_nascimento: dataNascimentoInformada,
         idade: String(idadeCalculada),
 
@@ -369,8 +358,6 @@ autoriza_uso_imagem: autorizaUsoImagem,
 
       setMensagem("Inscrição enviada com sucesso!");
       alert("Inscrição enviada com sucesso!");
-
-      abrirNotificacaoWhatsAppAdmin(nome, telefone);
 
       form.reset();
       setDataNascimento("");
@@ -495,6 +482,15 @@ autoriza_uso_imagem: autorizaUsoImagem,
               required
               type="text"
               placeholder="Endereço"
+              className="w-full bg-[#0F0F10] border border-[#2A2A2A] rounded-2xl px-5 py-4 outline-none focus:border-[#C79A4A]"
+            />
+
+            <input
+              name="cidade"
+              required
+              type="text"
+              placeholder="Cidade"
+              autoComplete="address-level2"
               className="w-full bg-[#0F0F10] border border-[#2A2A2A] rounded-2xl px-5 py-4 outline-none focus:border-[#C79A4A]"
             />
 

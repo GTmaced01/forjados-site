@@ -10,6 +10,7 @@ type Inscrito = {
   telefone: string;
   email: string;
   endereco: string;
+  cidade: string;
   idade: string;
   data_nascimento: string;
   igreja: string;
@@ -370,6 +371,8 @@ export default function AdminPage() {
       item.cpf?.toLowerCase().includes(texto) ||
       item.telefone?.toLowerCase().includes(texto) ||
       item.email?.toLowerCase().includes(texto) ||
+      item.endereco?.toLowerCase().includes(texto) ||
+      item.cidade?.toLowerCase().includes(texto) ||
       item.igreja?.toLowerCase().includes(texto) ||
       item.camisa?.toLowerCase().includes(texto) ||
       item.pagamento_status?.toLowerCase().includes(texto) ||
@@ -403,6 +406,7 @@ export default function AdminPage() {
       "Telefone",
       "Email",
       "Endereco",
+      "Cidade",
       "Data nascimento",
       "Idade",
       "Igreja",
@@ -431,6 +435,7 @@ export default function AdminPage() {
       item.telefone,
       item.email,
       item.endereco,
+      item.cidade,
       formatarDataNascimento(item.data_nascimento),
       String(calcularIdadePorNascimento(item.data_nascimento, item.idade)),
       item.igreja,
@@ -776,7 +781,7 @@ export default function AdminPage() {
           <div className="flex flex-col gap-4">
             <input
               type="text"
-              placeholder="Buscar por nome, CPF, telefone, e-mail, igreja, camisa, nascimento, status, gestante ou imagem..."
+              placeholder="Buscar por nome, CPF, telefone, e-mail, endereço, cidade, igreja, camisa, nascimento, status, gestante ou imagem..."
               value={busca}
               onChange={(e) => setBusca(e.target.value)}
               className="w-full bg-[#090909] border border-[#2A2A2A] rounded-2xl px-5 py-4 outline-none focus:border-[#C79A4A]"
@@ -1311,6 +1316,7 @@ function FichaCompleta({
               <Campo label="WhatsApp" valor={item.telefone} />
               <Campo label="E-mail" valor={item.email} />
               <Campo label="Endereço" valor={item.endereco} />
+              <Campo label="Cidade" valor={item.cidade} />
 
               <Campo
                 label="Data de nascimento"
