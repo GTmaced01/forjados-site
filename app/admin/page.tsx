@@ -165,7 +165,7 @@ export default function AdminPage() {
     setMensagemLogin("");
 
     const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: "https://forjados-site.vercel.app/admin/redefinir-senha",
+      redirectTo: `${window.location.origin}/admin/redefinir-senha`,
     });
 
     setCarregando(false);
