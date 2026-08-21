@@ -3,9 +3,10 @@ import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 
 const inter = Inter({ subsets: ['latin'] });
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://forjados-site-theta.vercel.app';
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://forjados-site.vercel.app'),
+  metadataBase: new URL(siteUrl),
 
   title: 'FORJADOS — Retiro de Cura e Restauração',
 
@@ -16,7 +17,7 @@ export const metadata: Metadata = {
     title: 'FORJADOS — Retiro de Cura e Restauração',
     description:
       'A forja não era para te destruir. Era para te transformar.',
-    url: 'https://forjados-site.vercel.app',
+    url: siteUrl,
     siteName: 'FORJADOS',
     locale: 'pt_BR',
     type: 'website',
