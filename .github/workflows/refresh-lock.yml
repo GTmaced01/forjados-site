@@ -1,0 +1,42 @@
+name: Refresh lockfile
+
+on:
+  push:
+    branches:
+      - chore/security-hardening-20260821
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v5
+        with:
+          ref: chore/security-hardening-20260821
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Regenerate package-lock
+        run: npm install --package-lock-only --ignore-scripts
+
+      - name: Commit lockfile
+        run: |
+          if git diff --quiet -- package-lock.json; then
+            echo "Lockfile already current."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git commit -m "chore: refresh package lock after security upgrade"
+          git push origin HEAD:chore/security-hardening-20260821
