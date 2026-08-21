@@ -6,12 +6,8 @@ export default defineConfig([
   {
     rules: {
       "@next/next/no-html-link-for-pages": "warn",
-    },
+      "react-hooks/set-state-in-effect": "warn"
+    }
   },
-  globalIgnores([
-    ".next/**",
-    "out/**",
-    "build/**",
-    "next-env.d.ts",
-  ]),
+  globalIgnores([".next/**", "out/**", "build/**", "next-env.d.ts"])
 ]);
