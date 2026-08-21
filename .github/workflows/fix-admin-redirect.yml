@@ -1,0 +1,42 @@
+name: Fix admin redirect
+
+on:
+  push:
+    branches:
+      - chore/security-hardening-20260821
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v5
+        with:
+          ref: chore/security-hardening-20260821
+
+      - name: Replace legacy password-reset redirect
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('app/admin/page.tsx')
+          text = p.read_text(encoding='utf-8')
+          old = 'redirectTo: "https://forjados-site.vercel.app/admin/redefinir-senha",'
+          new = 'redirectTo: `${window.location.origin}/admin/redefinir-senha`,'
+          if old not in text:
+              raise SystemExit('Legacy redirect not found; refusing blind edit.')
+          p.write_text(text.replace(old, new, 1), encoding='utf-8')
+          Path('.github/workflows/fix-admin-redirect.yml').unlink()
+          PY
+
+      - name: Commit exact redirect fix and remove temporary workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/admin/page.tsx .github/workflows/fix-admin-redirect.yml
+          git commit -m "fix: use current origin for admin password reset"
+          git push origin HEAD:chore/security-hardening-20260821
