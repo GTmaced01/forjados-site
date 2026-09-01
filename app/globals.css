@@ -229,6 +229,8 @@ a:focus-visible {
 
 .hero-copy {
   width: min(92vw, 86rem);
+  max-width: 100%;
+  min-width: 0;
   padding-top: 6rem;
   text-align: center;
 }
@@ -636,7 +638,9 @@ a:focus-visible {
 .final-mark {
   position: relative;
   z-index: 2;
+  width: 100%;
   max-width: 76rem;
+  min-width: 0;
   text-align: center;
 }
 
@@ -737,6 +741,7 @@ a:focus-visible {
   }
 
   .hero-copy {
+    width: 100%;
     padding: 5rem 1rem 0;
   }
 
@@ -865,6 +870,7 @@ a:focus-visible {
   }
 
   .final-description {
+    width: 100%;
     max-width: 29rem;
   }
 
@@ -884,7 +890,8 @@ a:focus-visible {
   }
 
   .hero-title {
-    font-size: clamp(2.8rem, 14.2vw, 4.1rem);
+    font-size: clamp(2.3rem, 12vw, 3.7rem);
+    line-height: 0.9;
   }
 
   .stage-word h3 {
@@ -900,7 +907,8 @@ a:focus-visible {
   }
 
   .final-mark h2 {
-    font-size: clamp(3rem, 14vw, 4.6rem);
+    font-size: clamp(2.3rem, 11.8vw, 3.6rem);
+    line-height: 0.9;
   }
 }
 
