@@ -82,6 +82,11 @@ Deno.serve(async req => {
     const response = await mp('/v1/payments', { method: 'POST', headers: { 'X-Idempotency-Key': order.id }, body: JSON.stringify(stored) });
     const payment = await response.json().catch(() => null);
     if (!response.ok) {
+      // Log only technical codes; provider messages may contain payer data.
+      const causeCodes = Array.isArray(payment?.cause) ? payment.cause
+        .map((cause: { code?: unknown }) => String(cause?.code || ''))
+        .filter((code: string) => /^\d{1,8}$/.test(code)).slice(0, 10) : [];
+      console.error('Mercado Pago payment rejected', { status: response.status, causeCodes });
       // Unknown outcomes stay locked and retry the exact original request.
       if (response.status === 400 || response.status === 422) {
         await rpc('site_payment_fail', { p_id: order.id });
