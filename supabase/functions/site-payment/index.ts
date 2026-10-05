@@ -13,6 +13,20 @@ function people(value: unknown): Person[] {
   return result;
 }
 let methods: Array<{ id: string; payment_type_id: string }> | null = null;
+async function registrationPayer(orderId: string) {
+  const { data: item, error: itemError } = await db.from('site_payment_order_items')
+    .select('inscrito_id').eq('order_id', orderId).eq('active', true)
+    .order('inscrito_id', { ascending: true }).limit(1).maybeSingle();
+  if (itemError || !item?.inscrito_id) throw new PaymentError('Não foi possível identificar o pagador.', 503);
+  const { data: registration, error } = await db.from('inscritos')
+    .select('cpf,email').eq('id', item.inscrito_id).maybeSingle();
+  const cpf = String(registration?.cpf || '').replace(/\D/g, '');
+  const email = String(registration?.email || '').trim().toLowerCase();
+  if (error || !/^\d{11}$/.test(cpf) || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    throw new PaymentError('Não foi possível identificar o pagador.', 503);
+  }
+  return { cpf, email };
+}
 async function payload(input: Record<string, unknown>, amount: number, orderId: string) {
   const method = String(input.payment_method_id || '');
   const pix = method === 'pix';
@@ -27,9 +41,17 @@ async function payload(input: Record<string, unknown>, amount: number, orderId: 
     if (!methods?.some(item => item.id === method && item.payment_type_id === 'credit_card')) throw new PaymentError('Utilize Pix ou cartão de crédito.');
   }
   const payer = input.payer as { email?: unknown; identification?: { type?: unknown; number?: unknown } } | undefined;
-  const email = String(payer?.email || '').trim().toLowerCase();
-  const document = String(payer?.identification?.number || '').replace(/\D/g, '');
-  const documentType = String(payer?.identification?.type || '');
+  let email = String(payer?.email || '').trim().toLowerCase();
+  let document = String(payer?.identification?.number || '').replace(/\D/g, '');
+  let documentType = String(payer?.identification?.type || '');
+  // Payment Brick returns only the payer email for Pix. The CPF comes from the
+  // already authenticated registration linked to this server-side order.
+  if (pix && (!/^\d{11}$|^\d{14}$/.test(document) || !['CPF', 'CNPJ'].includes(documentType))) {
+    const registration = await registrationPayer(orderId);
+    document = registration.cpf;
+    documentType = 'CPF';
+    if (!email) email = registration.email;
+  }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254 ||
       !(['CPF', 'CNPJ'].includes(documentType)) || !/^\d{11}$|^\d{14}$/.test(document)) throw new PaymentError('Preencha os dados do pagador no Mercado Pago.');
   return {

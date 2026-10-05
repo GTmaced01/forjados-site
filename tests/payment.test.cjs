@@ -19,8 +19,11 @@ function harness(options = {}) {
     MERCADO_PAGO_ENABLED: 'true', MERCADO_PAGO_MODE: 'production', ...options.env };
   const database = {
     from(table) {
-      const query = { select() { return query; }, eq() { return query; },
-        maybeSingle: async () => ({ data: table === 'site_runtime_secrets' ? { secret_value: 'mock-rate-secret' } : order, error: null }),
+      const query = { select() { return query; }, eq() { return query; }, order() { return query; }, limit() { return query; },
+        maybeSingle: async () => ({ data: table === 'site_runtime_secrets' ? { secret_value: 'mock-rate-secret' }
+          : table === 'site_payment_order_items' ? { inscrito_id: 'mock-registration' }
+          : table === 'inscritos' ? { cpf: '529.982.247-25', email: 'registration@example.invalid' }
+          : order, error: null }),
         single: async () => ({ data: order, error: null }),
       }; return query;
     },
@@ -101,6 +104,16 @@ test('installments above three and debit card are refused before charging', asyn
     assert.equal((await h.call({ action: 'create', id: h.id, token: h.token, formData })).status, 400);
     assert.equal(h.payments.length, 0);
   }
+});
+test('Pix uses the CPF from the linked registration when Payment Brick sends only email', async () => {
+  const h = harness({ provider: { payment_method_id: 'pix', payment_type_id: 'bank_transfer', status: 'pending' } });
+  const response = await h.call({ action: 'create', id: h.id, token: h.token,
+    formData: { payment_method_id: 'pix', payer: { email: 'payer@example.invalid' } } });
+  assert.equal(response.status, 200);
+  assert.deepEqual(h.payments[0].request.payer, {
+    email: 'payer@example.invalid', identification: { type: 'CPF', number: '52998224725' },
+  });
+  assert.equal(h.payments[0].request.installments, 1);
 });
 test('wrong capability cannot view or create a payment', async () => {
   const h = harness();

@@ -86,7 +86,12 @@
 .quantity input { width: 82px; text-align: center; padding: 10px 8px; background: #101011; color: #fff; border: 1px solid #655337; border-radius: 10px; }
 .quantity small { display: block; font-size: .75rem; color: var(--muted); line-height: 1.6; margin-top: 12px; }
 .methodsInfo { display: flex; flex-wrap: wrap; gap: 8px; margin: 24px 0; }
-.methodsInfo span { color: #ded3be; background: #c79a4a0c; border: 1px solid #55442e; border-radius: 8px; padding: 8px 10px; font-size: .75rem; }
+.methodsInfo span { color: #ded3be; background: #c79a4a0c; border: 1px solid #55442e; border-radius: 999px; padding: 8px 12px; font-size: .75rem; }
+.brickShell { margin-top: 22px; padding: 22px; border: 1px solid #3b352c; border-radius: 16px; background: linear-gradient(145deg, #181716, #121213 72%); box-shadow: 0 18px 50px #00000024; }
+.brickHeading { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding-bottom: 14px; border-bottom: 1px solid #302d29; }
+.brickHeading h3 { margin: 6px 0 0; font-size: 1.1rem; font-weight: 700; letter-spacing: -.02em; }
+.secureBadge { flex: 0 0 auto; border: 1px solid #5b4a31; border-radius: 999px; padding: 7px 10px; color: #dcc18f; font-size: .72rem; font-weight: 650; }
+.brickDescription { margin: 14px 0 20px; color: var(--muted); font-size: .84rem; line-height: 1.55; }
 .identification { display: grid; gap: 20px; }
 .identification fieldset { border: 1px solid #3a3a3c; border-radius: 12px; padding: 18px; display: grid; gap: 16px; min-width: 0; }
 .identification legend { font-size: .875rem; color: var(--accent); font-weight: 600; padding: 0 8px; }
@@ -130,6 +135,9 @@
   .total { margin-inline: 20px; }
   .registrationNote { padding-inline: 20px; }
   .checkout { padding: 24px 20px; }
+  .brickShell { padding: 18px 14px; margin-inline: -4px; }
+  .brickHeading { align-items: flex-start; }
+  .secureBadge { font-size: .68rem; }
   .checkoutHeader { display: block; }
   .provider { display: inline-block; margin-top: 14px; }
   .methods { grid-template-columns: 1fr; }

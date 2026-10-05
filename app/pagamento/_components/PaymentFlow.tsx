@@ -12,8 +12,15 @@ type Session = { id: string; token: string };
 type Config = { ready: boolean; publicKey: string | null; mode: string };
 type Brick = { unmount: () => Promise<void> };
 type BrickSettings = {
-  initialization: { amount: number };
-  customization: { visual: { style: { theme: string } }; paymentMethods: { creditCard: string; bankTransfer: string; maxInstallments: number } };
+  initialization: { amount: number; payer?: { email: string; identification: { type: string; number: string } } };
+  customization: {
+    visual: {
+      hideFormTitle: boolean;
+      style: { theme: string; customVariables: Record<string, string> };
+      texts: Record<string, unknown>;
+    };
+    paymentMethods: { creditCard: string; bankTransfer: string; minInstallments: number; maxInstallments: number };
+  };
   callbacks: { onReady: () => void; onError: () => void; onSubmit: (input: { formData: Record<string, unknown> }) => Promise<void> };
 };
 declare global {
@@ -69,6 +76,8 @@ export function PaymentFlow({ audience }: { audience: PaymentAudience }) {
   const orderId = order?.id;
   const orderStatus = order?.status;
   const orderTotal = order?.total;
+  const payerEmail = persons[0]?.email.trim().toLowerCase() || "";
+  const payerDocument = persons[0]?.cpf.replace(/\D/g, "") || "";
 
   useEffect(() => {
     let alive = true;
@@ -110,8 +119,37 @@ export function PaymentFlow({ audience }: { audience: PaymentAudience }) {
       setBrickReady(false);
       const provider = new window.MercadoPago(config.publicKey!, { locale: "pt-BR" });
       controller = await provider.bricks().create("payment", `mercado-pago-${audience}`, {
-        initialization: { amount: orderTotal },
-        customization: { visual: { style: { theme: "dark" } }, paymentMethods: { creditCard: "all", bankTransfer: "all", maxInstallments: 3 } },
+        initialization: {
+          amount: orderTotal,
+          ...(payerEmail && payerDocument ? { payer: { email: payerEmail, identification: { type: "CPF", number: payerDocument } } } : {}),
+        },
+        customization: {
+          visual: {
+            hideFormTitle: true,
+            style: {
+              theme: "dark",
+              customVariables: {
+                textPrimaryColor: "#f6f3ec", textSecondaryColor: "#aaa49a",
+                inputBackgroundColor: "#1b1b1d", formBackgroundColor: "#151516",
+                baseColor: "#d4a657", baseColorFirstVariant: "#e4bc78", baseColorSecondVariant: "#a97835",
+                errorColor: "#ff9a7d", successColor: "#79c994", successSecondaryColor: "#173d27",
+                outlinePrimaryColor: "#6f5a39", outlineSecondaryColor: "#343438", buttonTextColor: "#171109",
+                borderRadiusSmall: "8px", borderRadiusMedium: "12px", borderRadiusLarge: "16px", formPadding: "0px",
+              },
+            },
+            texts: {
+              emailSectionTitle: "Dados para confirmação",
+              installmentsSectionTitle: "Parcelamento",
+              selectInstallments: "Escolha de 1 a 3 parcelas",
+              formSubmit: "Confirmar pagamento",
+              paymentMethods: {
+                creditCardTitle: "Cartão de crédito", creditCardValueProp: "Em até 3x",
+                pixTitle: "Pix", pixValueProp: "QR Code e Copia e Cola",
+              },
+            },
+          },
+          paymentMethods: { creditCard: "all", bankTransfer: "all", minInstallments: 1, maxInstallments: 3 },
+        },
         callbacks: {
           onReady: () => { if (!cancelled) setBrickReady(true); },
           onError: () => { if (!cancelled) setError("Não foi possível carregar o formulário do Mercado Pago. Recarregue esta página."); },
@@ -138,7 +176,7 @@ export function PaymentFlow({ audience }: { audience: PaymentAudience }) {
       cancelled = true;
       brickQueue.current = brickQueue.current.catch(() => {}).then(async () => { if (controller) await controller.unmount(); });
     };
-  }, [session, orderId, orderStatus, orderTotal, sdkReady, config?.publicKey, audience]);
+  }, [session, orderId, orderStatus, orderTotal, sdkReady, config?.publicKey, audience, payerEmail, payerDocument]);
 
   useEffect(() => {
     if (!session || !orderStatus || terminal.includes(orderStatus) || orderStatus === "prepared") return;
@@ -247,7 +285,14 @@ export function PaymentFlow({ audience }: { audience: PaymentAudience }) {
           {order.status === "prepared" && config?.publicKey && <>
             <Script src="https://sdk.mercadopago.com/js/v2" strategy="afterInteractive" onReady={() => setSdkReady(true)} onError={() => setError("Não foi possível carregar o Mercado Pago. Verifique sua conexão.")} />
             {!brickReady && <p className={styles.methodIntro}>Carregando formulário seguro…</p>}
-            <div id={`mercado-pago-${audience}`} aria-busy={busy} />
+            <div className={styles.brickShell}>
+              <div className={styles.brickHeading}>
+                <div><span className={styles.eyebrow}>Pagamento seguro</span><h3>Escolha como deseja pagar</h3></div>
+                <span className={styles.secureBadge}>Mercado Pago</span>
+              </div>
+              <p className={styles.brickDescription}>Pix à vista ou cartão de crédito em até 3 parcelas.</p>
+              <div id={`mercado-pago-${audience}`} aria-busy={busy} />
+            </div>
           </>}
           {order.pixCode && <div className={styles.pix}>
             {order.pixQr && <img src={`data:image/png;base64,${order.pixQr}`} width="220" height="220" alt="QR Code para pagar com Pix" />}
