@@ -34,6 +34,9 @@ function harness(options = {}) {
       if (name === 'site_payment_reconcile') {
         Object.assign(order, { provider_id: args.p_provider, status: args.p_status, provider_request: null });
       }
+      if (name === 'site_payment_fail') {
+        Object.assign(order, { status: 'failed', provider_request: null });
+      }
       return { data: null, error: null };
     },
   };
@@ -46,6 +49,7 @@ function harness(options = {}) {
     if (init.method === 'POST') {
       payments.push({ request: JSON.parse(init.body), key: init.headers['X-Idempotency-Key'] });
       if (options.timeout) throw new Error('simulated lost response');
+      if (options.providerHttpStatus) return Response.json({ cause: [{ code: 7 }] }, { status: options.providerHttpStatus });
     }
     return Response.json(providerPayment());
   };
@@ -109,6 +113,21 @@ test('unknown outcome preserves canonical request and exact retry identity', asy
   assert.equal(h.order.status, 'submitting');
   assert.equal((await h.call({ action: 'create', id: h.id, token: h.token, formData: { ...card, token: 'different' } })).status, 503);
   assert.deepEqual(h.payments[0], h.payments[1]);
+});
+test('provider authentication failure releases the attempt without confirming payment', async () => {
+  const h = harness({ providerHttpStatus: 401 });
+  const response = await h.call({ action: 'create', id: h.id, token: h.token, formData: card });
+  assert.equal(response.status, 503);
+  assert.match((await response.json()).error, /revisar as credenciais/);
+  assert.equal(h.order.status, 'failed');
+  assert.equal(h.order.provider_request, null);
+  assert.equal(h.order.provider_id, null);
+});
+test('provider server failure keeps the original attempt reserved for safe retry', async () => {
+  const h = harness({ providerHttpStatus: 500 });
+  assert.equal((await h.call({ action: 'create', id: h.id, token: h.token, formData: card })).status, 503);
+  assert.equal(h.order.status, 'submitting');
+  assert.equal(h.order.provider_request.token, card.token);
 });
 test('group total comes from server order, not quantity or price from the browser', async () => {
   const h = harness({ order: { quantity: 2, total_cents: 36000 }, provider: { transaction_amount: 360 } });

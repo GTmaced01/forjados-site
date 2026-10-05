@@ -87,6 +87,11 @@ Deno.serve(async req => {
         .map((cause: { code?: unknown }) => String(cause?.code || ''))
         .filter((code: string) => /^\d{1,8}$/.test(code)).slice(0, 10) : [];
       console.error('Mercado Pago payment rejected', { status: response.status, causeCodes });
+      // A rejected authentication never creates a payment; release this attempt.
+      if (response.status === 401) {
+        await rpc('site_payment_fail', { p_id: order.id });
+        throw new PaymentError('A organização precisa revisar as credenciais do Mercado Pago. Nenhum pagamento foi confirmado.', 503);
+      }
       // Unknown outcomes stay locked and retry the exact original request.
       if (response.status === 400 || response.status === 422) {
         await rpc('site_payment_fail', { p_id: order.id });
