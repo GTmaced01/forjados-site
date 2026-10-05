@@ -54,7 +54,7 @@ const faqItems = [
   {
     question: "Qual é o valor da pré-venda?",
     answer:
-      "A pré-venda está por R$135, com 25% de desconto sobre o valor de R$180, por tempo limitado. O comprovante de pagamento é anexado durante a inscrição.",
+      "A pré-venda está por R$135, com 25% de desconto sobre o valor de R$180, por tempo limitado. O pagamento é realizado separadamente da inscrição.",
   },
   {
     question: "Quem organiza o FORJADOS?",
@@ -441,7 +441,7 @@ export default function Home() {
                       <span className="text-2xl font-black text-gray-500 line-through">R$180</span>
                       <h3 className="text-5xl font-black leading-none text-[#C79A4A]">R$135</h3>
                     </div>
-                    <p className="mt-2 text-gray-500">Pré-venda por tempo limitado. Pagamento com comprovante anexado na inscrição.</p>
+                    <p className="mt-2 text-gray-500">Pré-venda por tempo limitado. Pagamento realizado separadamente da inscrição.</p>
                   </div>
 
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -619,3 +619,4 @@ export default function Home() {
     </main>
   );
 }
+

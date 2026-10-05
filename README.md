@@ -14,7 +14,7 @@ A aplicação foi desenvolvida para centralizar a apresentação do evento e red
 - informações do evento, perguntas frequentes e chamada para inscrição;
 - formulário com validação de CPF, data de nascimento e campos obrigatórios;
 - tratamento específico para participantes menores de idade;
-- envio de foto, comprovante e autorização do responsável;
+- envio de foto e autorização do responsável, sem exigir pagamento na inscrição;
 - aceite de termo de participação, política de privacidade e uso de imagem;
 - fluxo de inscrição intermediado por Supabase Edge Function;
 - painel administrativo autenticado;
@@ -117,3 +117,4 @@ Desenvolvido por [Gustavo Medeiros](https://github.com/GTmaced01).
 Este projeto **não é open source**. O código é disponibilizado publicamente para demonstração e avaliação técnica de portfólio, sem concessão de licença para uso, modificação, redistribuição ou exploração comercial.
 
 Contribuições externas não são aceitas no momento. Todos os direitos reservados ao autor.
+

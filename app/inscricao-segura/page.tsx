@@ -111,7 +111,6 @@ export default function InscricaoSeguraPage() {
 
     try {
       validarArquivo(dados.get("foto") as File, "A foto de rosto");
-      validarArquivo(dados.get("comprovante") as File, "O comprovante de pagamento");
       if (ehMenor) {
         validarArquivo(dados.get("autorizacao_menor") as File, "A autorização do responsável");
       }
@@ -348,32 +347,6 @@ export default function InscricaoSeguraPage() {
             </div>
           </div>
 
-          <div className="bg-black/40 border border-[#2A2A2A] rounded-2xl p-6">
-            <div className="flex items-center justify-between gap-3 mb-3">
-              <p className="text-gray-400">Valor da pré-venda</p>
-              <span className="bg-[#B71C1C] text-white text-xs font-black px-3 py-1 rounded-full">25% OFF</span>
-            </div>
-            <div className="flex items-end gap-3">
-              <span className="text-gray-500 text-2xl font-black line-through">R$180</span>
-              <h3 className="text-5xl font-black text-[#C79A4A] leading-none">R$135</h3>
-            </div>
-            <p className="text-gray-500 mt-3">
-              Valor de pré-venda com 25% de desconto. Pagamento via Pix. Anexe o comprovante abaixo.
-            </p>
-          </div>
-
-          <div className="space-y-4">
-            <h2 className="text-2xl font-black text-[#C79A4A]">Comprovante de pagamento</h2>
-            <input
-              name="comprovante"
-              required
-              type="file"
-              accept="image/jpeg,image/png,image/webp,application/pdf"
-              className={arquivo}
-            />
-            <p className="text-gray-500 text-sm">Envie imagem ou PDF, com até 5 MB.</p>
-          </div>
-
           <div className="bg-[#0F0F10] border border-[#2A2A2A] rounded-2xl p-5 space-y-4">
             <h2 className="text-2xl font-black text-[#C79A4A]">Termos e autorizações</h2>
 
@@ -440,3 +413,4 @@ export default function InscricaoSeguraPage() {
     </main>
   );
 }
+
