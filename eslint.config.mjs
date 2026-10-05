@@ -4,6 +4,7 @@ import nextVitals from "eslint-config-next/core-web-vitals";
 export default defineConfig([
   ...nextVitals,
   {
+    files: ["**/*.{js,mjs,jsx,ts,tsx}"],
     rules: {
       "@next/next/no-html-link-for-pages": "warn",
       "react-hooks/set-state-in-effect": "warn"

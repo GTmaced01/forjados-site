@@ -79,6 +79,36 @@
 .skipLink { position: absolute; left: 24px; top: 10px; transform: translateY(-160%); padding: 12px; color: #101010; background: var(--accent); z-index: 10; }
 .skipLink:focus { transform: translateY(0); }
 .page a:focus-visible, .page button:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+.quantity { margin: 0 28px 24px; }
+.quantity label { display: block; font-size: .875rem; margin-bottom: 12px; }
+.quantity > div { display: flex; align-items: center; gap: 12px; }
+.quantity button { width: 42px; height: 42px; border: 1px solid #655337; border-radius: 10px; background: #101011; color: var(--accent); font-size: 1.4rem; cursor: pointer; }
+.quantity input { width: 82px; text-align: center; padding: 10px 8px; background: #101011; color: #fff; border: 1px solid #655337; border-radius: 10px; }
+.quantity small { display: block; font-size: .75rem; color: var(--muted); line-height: 1.6; margin-top: 12px; }
+.methodsInfo { display: flex; flex-wrap: wrap; gap: 8px; margin: 24px 0; }
+.methodsInfo span { color: #ded3be; background: #c79a4a0c; border: 1px solid #55442e; border-radius: 8px; padding: 8px 10px; font-size: .75rem; }
+.identification { display: grid; gap: 20px; }
+.identification fieldset { border: 1px solid #3a3a3c; border-radius: 12px; padding: 18px; display: grid; gap: 16px; min-width: 0; }
+.identification legend { font-size: .875rem; color: var(--accent); font-weight: 600; padding: 0 8px; }
+.identification label, .pix label { display: grid; gap: 8px; font-size: .875rem; color: #dedbd3; }
+.identification input, .pix textarea { width: 100%; min-width: 0; background: #0c0c0d; border: 1px solid #444; border-radius: 8px; padding: 12px; color: #fff; font: inherit; }
+.identification input:focus, .quantity input:focus, .pix textarea:focus { outline: 2px solid var(--accent); outline-offset: 2px; }
+.primaryButton, .secondaryButton { display: inline-block; width: 100%; border-radius: 10px; padding: 14px; text-align: center; font-size: .875rem; font-weight: 650; cursor: pointer; }
+.primaryButton { background: var(--accent); color: #111; border: 1px solid var(--accent); }
+.secondaryButton { background: #101011; color: #e3d9c7; border: 1px solid #544937; }
+.page button:disabled { opacity: .55; cursor: not-allowed; }
+.error { border: 1px solid #bd7057; background: #b73e2115; border-radius: 10px; color: #ffcdbb; font-size: .875rem; line-height: 1.6; padding: 14px; margin: 20px 0; }
+.result { border: 1px solid #5c4c33; background: #d4a65709; border-radius: 14px; padding: 20px; margin: 20px 0; }
+.result h3 { margin: 0 0 8px; font-weight: 700; font-size: 1.1rem; }
+.result p { font-size: .875rem; line-height: 1.65; color: #bfbab0; margin: 0; }
+.result small { display: block; overflow-wrap: anywhere; color: #aca699; margin-top: 14px; font-size: .75rem; }
+.approved { border-color: #4b8862; background: #5da07615; }
+.approved h3 { color: #a0e0b5; }
+.resultActions { display: grid; gap: 12px; margin-top: 20px; }
+.pix { display: grid; gap: 16px; margin-block: 24px; }
+.pix img { margin: auto; border: 10px solid white; border-radius: 12px; }
+.pix textarea { min-height: 96px; resize: vertical; overflow-wrap: anywhere; }
+.pix p { font-size: .875rem; color: var(--muted); line-height: 1.6; }
 @media (max-width: 880px) {
   .grid { grid-template-columns: minmax(0, 1fr); }
   .summary .details { gap: 10px; }
@@ -96,6 +126,7 @@
   .summaryTop { padding: 24px 20px 20px; }
   .item { margin: 22px 20px; }
   .details { margin-inline: 20px; }
+  .quantity { margin-inline: 20px; }
   .total { margin-inline: 20px; }
   .registrationNote { padding-inline: 20px; }
   .checkout { padding: 24px 20px; }
