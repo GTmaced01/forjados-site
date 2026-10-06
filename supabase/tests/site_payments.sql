@@ -2,14 +2,15 @@
 begin;
 do $$
 declare
-  a uuid:=gen_random_uuid(); b uuid:=gen_random_uuid(); t uuid:=gen_random_uuid();
-  o uuid:=gen_random_uuid(); o2 uuid:=gen_random_uuid(); ot uuid:=gen_random_uuid();
+  a uuid:=gen_random_uuid(); b uuid:=gen_random_uuid(); t uuid:=gen_random_uuid(); c uuid:=gen_random_uuid();
+  o uuid:=gen_random_uuid(); o2 uuid:=gen_random_uuid(); ot uuid:=gen_random_uuid(); oc uuid:=gen_random_uuid();
   h text:=repeat('a',64); persons jsonb; first_request jsonb; result jsonb;
 begin
   insert into public.inscritos(id,nome,cpf,telefone,email,categoria,pagamento_status) values
     (a,'Teste transacional A','00000000001','00000000000',a::text||'@example.invalid','participante','pendente'),
     (b,'Teste transacional B','00000000002','00000000000',b::text||'@example.invalid','participante','pendente'),
-    (t,'Teste transacional equipe','00000000003','00000000000',t::text||'@example.invalid','equipe','pendente');
+    (t,'Teste transacional equipe','00000000003','00000000000',t::text||'@example.invalid','equipe','pendente'),
+    (c,'Teste reserva checkout','00000000004','00000000000',c::text||'@example.invalid','equipe','pendente');
   persons:=jsonb_build_array(jsonb_build_object('cpf','00000000001','email',a::text||'@example.invalid'),jsonb_build_object('cpf','00000000002','email',b::text||'@example.invalid'));
   perform public.site_payment_prepare(o,h,'participante',persons);
   if not exists(select 1 from public.site_payment_orders where id=o and total_cents=36000 and quantity=2) then raise exception 'wrong group total'; end if;
@@ -23,6 +24,15 @@ begin
     perform public.site_payment_prepare(ot,h,'participante',jsonb_build_array(jsonb_build_object('cpf','00000000003','email',t::text||'@example.invalid')));
     raise exception 'wrong category accepted';
   exception when raise_exception then if sqlerrm not like 'CHECKOUT:%' then raise; end if; end;
+  perform public.site_payment_prepare(oc,h,'equipe',jsonb_build_array(jsonb_build_object('cpf','00000000004','email',c::text||'@example.invalid')));
+  perform public.site_payment_checkout_start(oc,h);
+  update public.site_payment_orders set created_at=now()-interval '20 minutes' where id=oc;
+  begin
+    perform public.site_payment_abandon(oc,h);
+    raise exception 'issued checkout was abandoned';
+  exception when raise_exception then if sqlerrm not like 'CHECKOUT:%' then raise; end if; end;
+  perform public.site_payment_prepare(ot,h,'equipe',jsonb_build_array(jsonb_build_object('cpf','00000000003','email',t::text||'@example.invalid')));
+  if not exists(select 1 from public.site_payment_order_items where order_id=oc and active) then raise exception 'issued checkout was released after 15 minutes'; end if;
   first_request:=jsonb_build_object('transaction_amount',360,'external_reference',o::text,'installments',3,'token','test-token');
   begin
     perform public.site_payment_begin(o,h,first_request||'{"transaction_amount":1}'::jsonb);
@@ -58,4 +68,4 @@ begin
      has_function_privilege('authenticated','public.site_payment_prepare(uuid,text,text,jsonb)','execute') then raise exception 'private payment access exposed'; end if;
 end $$;
 rollback;
-select 'PASS: prices, quantity, category, duplicate reservations, idempotency, max 3x, group approval, webhook replay, refund, abandonment, failed attempt, private access; all fixtures rolled back' as verification;
+select 'PASS: prices, quantity, category, duplicate reservations, idempotency, max 3x, group approval, webhook replay, refund, issued-checkout reservation, abandonment, failed attempt, private access; all fixtures rolled back' as verification;

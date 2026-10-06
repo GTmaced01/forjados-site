@@ -11,7 +11,7 @@ function harness(options = {}) {
   const id = '10000000-0000-4000-8000-000000000001';
   const order = { id, access_hash: createHash('sha256').update(token).digest('hex'), categoria: 'participante',
     quantity: 1, total_cents: 18000, status: 'prepared', provider_id: null, provider_updated_at: null,
-    provider_request: null, pix_code: null, pix_qr: null, updated_at: new Date().toISOString(), ...options.order };
+    checkout_started_at: null, pix_code: null, pix_qr: null, updated_at: new Date().toISOString(), ...options.order };
   const payments = [];
   const preferences = [];
   let handler;
@@ -30,16 +30,9 @@ function harness(options = {}) {
     },
     async rpc(name, args) {
       if (name === 'site_payment_rate_limit') return { data: options.rateAllowed !== false, error: null };
-      if (name === 'site_payment_begin') {
-        if (!order.provider_request) order.provider_request = args.p_request;
-        order.status = 'submitting';
-        return { data: order.provider_request, error: null };
-      }
+      if (name === 'site_payment_checkout_start') order.checkout_started_at = new Date().toISOString();
       if (name === 'site_payment_reconcile') {
-        Object.assign(order, { provider_id: args.p_provider, status: args.p_status, provider_request: null });
-      }
-      if (name === 'site_payment_fail') {
-        Object.assign(order, { status: 'failed', provider_request: null });
+        Object.assign(order, { provider_id: args.p_provider, status: args.p_status });
       }
       return { data: null, error: null };
     },
@@ -49,17 +42,13 @@ function harness(options = {}) {
     status: 'approved', date_last_updated: '2026-10-05T12:00:00Z', ...options.provider });
   const fetch = async (url, init = {}) => {
     if (url.endsWith('/users/me')) return Response.json({ id: 456 });
-    if (url.endsWith('/v1/payment_methods')) return Response.json([{ id: 'visa', payment_type_id: 'credit_card' }, { id: 'visa_debit', payment_type_id: 'debit_card' }]);
+    if (url.includes('/v1/payments/search?')) return Response.json({ results: options.searchPayments || [] });
     if (url.includes('/checkout/preferences/search?')) return Response.json({ elements: options.existingPreference ? [options.existingPreference] : [] });
     if (url.endsWith('/checkout/preferences') && init.method === 'POST') {
       preferences.push({ request: JSON.parse(init.body), key: init.headers['X-Idempotency-Key'] });
+      if (options.preferenceHttpStatus) return Response.json({ error: 'provider_unavailable' }, { status: options.preferenceHttpStatus });
       return Response.json({ id: 'mock-preference', init_point: 'https://www.mercadopago.com.br/checkout/v1/redirect?pref_id=mock-preference',
         sandbox_init_point: 'https://sandbox.mercadopago.com.br/checkout/v1/redirect?pref_id=mock-preference' });
-    }
-    if (init.method === 'POST') {
-      payments.push({ request: JSON.parse(init.body), key: init.headers['X-Idempotency-Key'] });
-      if (options.timeout) throw new Error('simulated lost response');
-      if (options.providerHttpStatus) return Response.json({ cause: [{ code: 7 }] }, { status: options.providerHttpStatus });
     }
     return Response.json(providerPayment());
   };
@@ -86,31 +75,17 @@ function harness(options = {}) {
     })),
   };
 }
-const card = { transaction_amount: 0.01, payment_method_id: 'visa', installments: 3, token: 'mock-card-token',
-  payer: { email: 'payer@example.invalid', identification: { type: 'CPF', number: '52998224725' } } };
-
 test('no credentials: checkout stays blocked and no payment is sent', async () => {
   const h = harness({ env: { MERCADO_PAGO_ACCESS_TOKEN: '' } });
   const config = await (await h.call({ action: 'config' })).json();
-  assert.equal(config.ready, false); assert.equal(config.publicKey, null);
-  assert.equal((await h.call({ action: 'create', id: h.id, token: h.token, formData: card })).status, 503);
-  assert.equal(h.payments.length, 0);
+  assert.equal(config.ready, false);
+  assert.equal((await h.call({ action: 'checkout', id: h.id, token: h.token })).status, 503);
+  assert.equal(h.preferences.length, 0);
 });
-test('client price is ignored and the stable order id is used as idempotency key', async () => {
+test('legacy direct payment cannot be called', async () => {
   const h = harness();
-  const response = await h.call({ action: 'create', id: h.id, token: h.token, formData: card });
-  assert.equal(response.status, 200);
-  assert.equal(h.payments[0].request.transaction_amount, 180);
-  assert.equal(h.payments[0].request.installments, 3);
-  assert.equal(h.payments[0].key, h.id);
-  assert.equal(h.order.provider_request, null);
-});
-test('installments above three and debit card are refused before charging', async () => {
-  for (const formData of [{ ...card, installments: 4 }, { ...card, payment_method_id: 'visa_debit' }]) {
-    const h = harness();
-    assert.equal((await h.call({ action: 'create', id: h.id, token: h.token, formData })).status, 400);
-    assert.equal(h.payments.length, 0);
-  }
+  assert.equal((await h.call({ action: 'create', id: h.id, token: h.token, formData: { token: 'card' } })).status, 400);
+  assert.equal(h.payments.length, 0);
 });
 test('checkout redirects to Mercado Pago and leaves Pix/card selection to Checkout Pro', () => {
   const source = readFileSync(resolve(__dirname, '../app/pagamento/_components/PaymentFlow.tsx'), 'utf8');
@@ -134,63 +109,54 @@ test('Checkout Pro preference uses server total, webhook, return URLs and maximu
   assert.equal(preference.request.items[0].quantity, 2);
   assert.equal(preference.request.items[0].unit_price, 180);
   assert.equal(preference.request.payment_methods.installments, 3);
+  assert.deepEqual(Array.from(preference.request.payment_methods.excluded_payment_types, x => x.id), ['ticket','debit_card','prepaid_card']);
+  assert.equal(h.order.checkout_started_at !== null, true);
   assert.equal(preference.request.notification_url, 'https://example.supabase.co/functions/v1/mercado-pago-webhook');
   assert.match(preference.request.back_urls.success, /pagamento\?retorno=success$/);
 });
 test('Checkout Pro reuses an existing preference for the same order', async () => {
   const h = harness({ existingPreference: { external_reference: '10000000-0000-4000-8000-000000000001',
+    expiration_date_to: new Date(Date.now() + 3600000).toISOString(),
     init_point: 'https://www.mercadopago.com.br/checkout/v1/redirect?pref_id=existing' } });
   const response = await h.call({ action: 'checkout', id: h.id, token: h.token });
   assert.equal(response.status, 200);
   assert.match((await response.json()).checkoutUrl, /pref_id=existing/);
   assert.equal(h.preferences.length, 0);
 });
-test('Pix uses the CPF from the linked registration when Payment Brick sends only email', async () => {
-  const h = harness({ provider: { payment_method_id: 'pix', payment_type_id: 'bank_transfer', status: 'pending' } });
-  const response = await h.call({ action: 'create', id: h.id, token: h.token,
-    formData: { payment_method_id: 'pix', payer: { email: 'payer@example.invalid' } } });
-  assert.equal(response.status, 200);
-  assert.deepEqual(h.payments[0].request.payer, {
-    email: 'payer@example.invalid', identification: { type: 'CPF', number: '52998224725' },
-  });
-  assert.equal(h.payments[0].request.installments, 1);
+test('expired preference does not create a second payable link', async () => {
+  const h = harness({ existingPreference: { external_reference: '10000000-0000-4000-8000-000000000001',
+    expiration_date_to: new Date(Date.now() - 3600000).toISOString(), init_point: 'https://www.mercadopago.com.br/checkout/old' } });
+  assert.equal((await h.call({ action: 'checkout', id: h.id, token: h.token })).status, 409);
+  assert.equal(h.preferences.length, 0);
 });
 test('wrong capability cannot view or create a payment', async () => {
   const h = harness();
   assert.equal((await h.call({ action: 'status', id: h.id, token: 'b'.repeat(64) })).status, 401);
   assert.equal(h.payments.length, 0);
 });
-test('unknown outcome preserves canonical request and exact retry identity', async () => {
-  const h = harness({ timeout: true });
-  assert.equal((await h.call({ action: 'create', id: h.id, token: h.token, formData: card })).status, 503);
-  assert.equal(h.order.status, 'submitting');
-  assert.equal((await h.call({ action: 'create', id: h.id, token: h.token, formData: { ...card, token: 'different' } })).status, 503);
-  assert.deepEqual(h.payments[0], h.payments[1]);
-});
-test('provider authentication failure releases the attempt without confirming payment', async () => {
-  const h = harness({ providerHttpStatus: 401 });
-  const response = await h.call({ action: 'create', id: h.id, token: h.token, formData: card });
+test('provider authentication failure never produces a checkout URL', async () => {
+  const h = harness({ preferenceHttpStatus: 401 });
+  const response = await h.call({ action: 'checkout', id: h.id, token: h.token });
   assert.equal(response.status, 503);
   assert.match((await response.json()).error, /revisar as credenciais/);
-  assert.equal(h.order.status, 'failed');
-  assert.equal(h.order.provider_request, null);
   assert.equal(h.order.provider_id, null);
 });
-test('provider server failure keeps the original attempt reserved for safe retry', async () => {
-  const h = harness({ providerHttpStatus: 500 });
-  assert.equal((await h.call({ action: 'create', id: h.id, token: h.token, formData: card })).status, 503);
-  assert.equal(h.order.status, 'submitting');
-  assert.equal(h.order.provider_request.token, card.token);
-});
-test('group total comes from server order, not quantity or price from the browser', async () => {
-  const h = harness({ order: { quantity: 2, total_cents: 36000 }, provider: { transaction_amount: 360 } });
-  assert.equal((await h.call({ action: 'create', id: h.id, token: h.token, formData: card, quantity: 99 })).status, 200);
-  assert.equal(h.payments[0].request.transaction_amount, 360);
+test('return consults the provider, not the redirect status', async () => {
+  const h = harness({ order: { checkout_started_at: new Date().toISOString() }, searchPayments: [{ id: 123,
+    external_reference: '10000000-0000-4000-8000-000000000001', collector_id: 456, currency_id: 'BRL',
+    transaction_amount: 180, live_mode: true, installments: 1, payment_method_id: 'visa',
+    payment_type_id: 'credit_card', status: 'approved', date_last_updated: '2026-10-05T12:00:00Z' }] });
+  const response = await h.call({ action: 'status', id: h.id, token: h.token, recover: true });
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).order.status, 'approved');
 });
 test('foreign collector, mismatched amount and wrong environment never confirm payment', async () => {
   for (const provider of [{ collector_id: 987 }, { transaction_amount: 0.01 }, { live_mode: false }]) {
-    const h = harness({ provider });
-    assert.equal((await h.call({ action: 'create', id: h.id, token: h.token, formData: card })).status, 409);
+    const base = { id: 123, external_reference: '10000000-0000-4000-8000-000000000001', collector_id: 456,
+      currency_id: 'BRL', transaction_amount: 180, live_mode: true, installments: 1,
+      payment_method_id: 'visa', payment_type_id: 'credit_card', status: 'approved', date_last_updated: '2026-10-05T12:00:00Z' };
+    const h = harness({ order: { checkout_started_at: new Date().toISOString() }, searchPayments: [{ ...base, ...provider }] });
+    assert.equal((await h.call({ action: 'status', id: h.id, token: h.token, recover: true })).status, 409);
     assert.notEqual(h.order.status, 'approved');
   }
 });

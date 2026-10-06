@@ -6,7 +6,7 @@ import type { PaymentAudience } from "./PaymentPage";
 import styles from "./payment.module.css";
 
 type Person = { cpf: string; email: string };
-type Order = { id: string; categoria: string; quantity: number; total: number; status: string; paymentId: string | null; pixCode: string | null; pixQr: string | null };
+type Order = { id: string; categoria: string; quantity: number; total: number; status: string; checkoutStarted: boolean; paymentId: string | null; pixCode: string | null; pixQr: string | null };
 type Session = { id: string; token: string };
 type Config = { ready: boolean; mode: string };
 const endpoint = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/site-payment`;
@@ -72,7 +72,9 @@ export function PaymentFlow({ audience }: { audience: PaymentAudience }) {
         try { stored = localStorage.getItem(storageKey); } catch { /* Optional persistence. */ }
         if (stored && data.ready) {
           const previous = JSON.parse(stored) as Session;
-          const result = await api({ action: "status", ...previous });
+          const returning = new URL(window.location.href).searchParams.has("retorno");
+          const result = await api({ action: "status", ...previous, recover: returning });
+          if (returning) window.history.replaceState(null, "", window.location.pathname);
           if (alive && result.order.categoria === category) { setSession(previous); setOrder(result.order); }
         }
       } catch (err) {
@@ -130,7 +132,7 @@ export function PaymentFlow({ audience }: { audience: PaymentAudience }) {
   async function consult() {
     if (!session || activeRequest.current) return;
     activeRequest.current = true; setBusy(true); setError("");
-    try { setOrder((await api({ action: "status", ...session })).order); }
+    try { setOrder((await api({ action: "status", ...session, recover: true })).order); }
     catch (err) { setError(err instanceof Error ? err.message : "Resultado ainda indisponível."); }
     finally { activeRequest.current = false; setBusy(false); }
   }
@@ -152,7 +154,7 @@ export function PaymentFlow({ audience }: { audience: PaymentAudience }) {
   }
   async function restart() {
     if (activeRequest.current) return;
-    if (order?.status === "prepared" && session) {
+    if (order?.status === "prepared" && !order.checkoutStarted && session) {
       activeRequest.current = true; setBusy(true);
       try { await api({ action: "abandon", ...session }); }
       catch (err) { setError(err instanceof Error ? err.message : "Não foi possível alterar o pedido."); return; }
@@ -235,7 +237,7 @@ export function PaymentFlow({ audience }: { audience: PaymentAudience }) {
           <div className={styles.resultActions}>
             <button type="button" className={styles.secondaryButton} disabled={busy} onClick={consult}>{busy ? "Consultando…" : order.status === "submitting" ? "Retomar confirmação" : "Consultar pagamento"}</button>
             {terminal.includes(order.status) && order.status !== "approved" && <button type="button" className={styles.primaryButton} disabled={busy} onClick={restart}>Iniciar novo pagamento</button>}
-            {order.status === "prepared" && <button type="button" className={styles.secondaryButton} disabled={busy} onClick={restart}>Alterar inscrições</button>}
+            {order.status === "prepared" && !order.checkoutStarted && <button type="button" className={styles.secondaryButton} disabled={busy} onClick={restart}>Alterar inscrições</button>}
             <Link className={styles.secondaryButton} href="/">Voltar ao site</Link>
           </div>
         </>}

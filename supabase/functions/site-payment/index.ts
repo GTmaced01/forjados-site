@@ -1,4 +1,4 @@
-import { allowed, authorized, cors, db, hash, json, limit, mode, mp, PaymentError, publicKey, ready, reconcile, refresh, rpc, summary, webhookUrl } from '../_shared/payment.ts';
+import { allowed, authorized, cors, hash, json, limit, mode, mp, PaymentError, ready, reconcile, refresh, rpc, summary, webhookUrl } from '../_shared/payment.ts';
 
 type Person = { cpf: string; email: string };
 function safeProviderText(value: unknown) {
@@ -27,56 +27,6 @@ function people(value: unknown): Person[] {
   if (new Set(result.map(person => person.cpf)).size !== result.length) throw new PaymentError('Cada pessoa deve aparecer uma única vez.');
   return result;
 }
-let methods: Array<{ id: string; payment_type_id: string }> | null = null;
-async function registrationPayer(orderId: string) {
-  const { data: item, error: itemError } = await db.from('site_payment_order_items')
-    .select('inscrito_id').eq('order_id', orderId).eq('active', true)
-    .order('inscrito_id', { ascending: true }).limit(1).maybeSingle();
-  if (itemError || !item?.inscrito_id) throw new PaymentError('Não foi possível identificar o pagador.', 503);
-  const { data: registration, error } = await db.from('inscritos')
-    .select('cpf,email').eq('id', item.inscrito_id).maybeSingle();
-  const cpf = String(registration?.cpf || '').replace(/\D/g, '');
-  const email = String(registration?.email || '').trim().toLowerCase();
-  if (error || !/^\d{11}$/.test(cpf) || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    throw new PaymentError('Não foi possível identificar o pagador.', 503);
-  }
-  return { cpf, email };
-}
-async function payload(input: Record<string, unknown>, amount: number, orderId: string) {
-  const method = String(input.payment_method_id || '');
-  const pix = method === 'pix';
-  const installments = pix ? 1 : Number(input.installments);
-  if (!pix) {
-    if (!Number.isInteger(installments) || installments < 1 || installments > 3 || !/^[a-zA-Z0-9_-]{1,60}$/.test(method) || typeof input.token !== 'string' || input.token.length > 512) throw new PaymentError('Cartão inválido ou parcelamento acima de 3x.');
-    if (!methods) {
-      const response = await mp('/v1/payment_methods');
-      if (!response.ok) throw new PaymentError('Não foi possível consultar os meios de pagamento.', 503);
-      methods = await response.json();
-    }
-    if (!methods?.some(item => item.id === method && item.payment_type_id === 'credit_card')) throw new PaymentError('Utilize Pix ou cartão de crédito.');
-  }
-  const payer = input.payer as { email?: unknown; identification?: { type?: unknown; number?: unknown } } | undefined;
-  let email = String(payer?.email || '').trim().toLowerCase();
-  let document = String(payer?.identification?.number || '').replace(/\D/g, '');
-  let documentType = String(payer?.identification?.type || '');
-  // Payment Brick returns only the payer email for Pix. The CPF comes from the
-  // already authenticated registration linked to this server-side order.
-  if (pix && (!/^\d{11}$|^\d{14}$/.test(document) || !['CPF', 'CNPJ'].includes(documentType))) {
-    const registration = await registrationPayer(orderId);
-    document = registration.cpf;
-    documentType = 'CPF';
-    if (!email) email = registration.email;
-  }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254 ||
-      !(['CPF', 'CNPJ'].includes(documentType)) || !/^\d{11}$|^\d{14}$/.test(document)) throw new PaymentError('Preencha os dados do pagador no Mercado Pago.');
-  return {
-    transaction_amount: amount, description: 'FORJADOS - inscrições', payment_method_id: method,
-    installments, payer: { email, identification: { type: documentType, number: document } },
-    ...(pix ? { date_of_expiration: new Date(Date.now() + 60 * 60 * 1000).toISOString() } : { token: input.token,
-      ...(String(input.issuer_id || '').match(/^\d{1,20}$/) ? { issuer_id: String(input.issuer_id) } : {}) }),
-    external_reference: orderId, notification_url: webhookUrl,
-  };
-}
 async function checkoutPreference(order: { id: string; categoria: string; quantity: number; total_cents: number }) {
   // Reuse an existing preference for this order so repeated clicks or a lost
   // browser response cannot create multiple checkout links.
@@ -84,8 +34,15 @@ async function checkoutPreference(order: { id: string; categoria: string; quanti
   if (!search.ok) throw new PaymentError('Não foi possível preparar o redirecionamento agora. Tente novamente.', 503);
   const searchBody = await search.json().catch(() => null);
   const existing = Array.isArray(searchBody?.elements) ? searchBody.elements.find((item: Record<string, unknown>) =>
-    item?.external_reference === order.id && trustedCheckoutUrl(mode === 'test' ? item?.sandbox_init_point : item?.init_point)) : null;
-  if (existing) return trustedCheckoutUrl(mode === 'test' ? existing.sandbox_init_point : existing.init_point)!;
+    item?.external_reference === order.id) : null;
+  if (existing) {
+    if (Date.parse(String(existing.expiration_date_to || '')) <= Date.now()) {
+      throw new PaymentError('O prazo deste checkout terminou. Consulte a organização antes de iniciar outro pagamento.', 409);
+    }
+    const url = trustedCheckoutUrl(mode === 'test' ? existing.sandbox_init_point : existing.init_point);
+    if (!url) throw new PaymentError('Não foi possível verificar o endereço do checkout.', 503);
+    return url;
+  }
 
   const base = order.categoria === 'equipe'
     ? 'https://forjados-site-theta.vercel.app/pagamentoequipe'
@@ -146,7 +103,7 @@ Deno.serve(async req => {
     let input: Record<string, unknown>;
     try { input = JSON.parse(raw); } catch { throw new PaymentError('Formato inválido.'); }
     if (!input || typeof input !== 'object') throw new PaymentError('Formato inválido.');
-    if (input.action === 'config') return json(req, { ready, publicKey: ready ? publicKey : null, mode, prices: { participante: 180, equipe: 90 }, maxQuantity: 20, maxInstallments: 3 });
+    if (input.action === 'config') return json(req, { ready, mode });
     if (!ready) throw new PaymentError('Os pagamentos ainda não foram liberados pela organização.', 503);
 
     if (input.action === 'prepare') {
@@ -164,51 +121,27 @@ Deno.serve(async req => {
       return json(req, { ok: true });
     }
     if (input.action === 'status') {
-      // The signed webhook is primary; polling recovers missed notifications.
-      const refreshed = order.provider_id && Date.now() - Date.parse(order.updated_at) >= 15000 ? await refresh(order) : order;
+      // The signed webhook is primary. A return from Checkout Pro also verifies
+      // the payment directly with the provider; never trust URL status fields.
+      let refreshed = order.provider_id && Date.now() - Date.parse(order.updated_at) >= 15000 ? await refresh(order) : order;
+      if (input.recover === true && order.checkout_started_at && !order.provider_id) {
+        const response = await mp(`/v1/payments/search?external_reference=${encodeURIComponent(order.id)}&limit=10`);
+        if (!response.ok) throw new PaymentError('Resultado ainda indisponível. Consulte novamente.', 503);
+        const payments = (await response.json().catch(() => null))?.results;
+        if (!Array.isArray(payments)) throw new PaymentError('Resultado ainda indisponível. Consulte novamente.', 503);
+        if (payments.length > 1) throw new PaymentError('Há mais de uma tentativa. Consulte a organização para verificar o resultado.', 409);
+        if (payments.length === 1) refreshed = await reconcile(payments[0]);
+      }
       return json(req, { order: summary(refreshed) });
     }
     if (input.action === 'checkout') {
       if (order.status !== 'prepared' || order.provider_id) {
         throw new PaymentError('Este pedido já possui uma tentativa de pagamento. Consulte o resultado ou inicie um novo pedido.', 409);
       }
+      await rpc('site_payment_checkout_start', { p_id: order.id, p_hash: order.access_hash });
       return json(req, { checkoutUrl: await checkoutPreference(order), order: summary(order) });
     }
-    if (input.action !== 'create') throw new PaymentError('Operação inválida.');
-    if (order.provider_id || !['prepared', 'submitting'].includes(order.status)) return json(req, { order: summary(await refresh(order)) });
-    const canonical = order.provider_request || await payload((input.formData || {}) as Record<string, unknown>, order.total_cents / 100, order.id);
-    const stored = await rpc('site_payment_begin', { p_id: order.id, p_hash: order.access_hash, p_request: canonical });
-    if (!stored) return json(req, { order: summary(await authorized(order.id, input.token)) });
-    const response = await mp('/v1/payments', { method: 'POST', headers: { 'X-Idempotency-Key': order.id }, body: JSON.stringify(stored) });
-    const payment = await response.json().catch(() => null);
-    if (!response.ok) {
-      // Keep enough sanitized provider detail to diagnose rejections without
-      // placing payer data or card tokens in logs.
-      const causes = Array.isArray(payment?.cause) ? payment.cause.slice(0, 10)
-        .map((cause: { code?: unknown; description?: unknown }) => ({
-          code: String(cause?.code || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 32),
-          description: safeProviderText(cause?.description),
-        })).filter((cause: { code: string; description: string }) => cause.code || cause.description) : [];
-      console.error('Mercado Pago payment rejected', {
-        status: response.status,
-        error: safeProviderText(payment?.error),
-        message: safeProviderText(payment?.message),
-        causes,
-      });
-      // A rejected authentication never creates a payment; release this attempt.
-      if (response.status === 401) {
-        await rpc('site_payment_fail', { p_id: order.id });
-        throw new PaymentError('A organização precisa revisar as credenciais do Mercado Pago. Nenhum pagamento foi confirmado.', 503);
-      }
-      // Unknown outcomes stay locked and retry the exact original request.
-      if (response.status === 400 || response.status === 422) {
-        await rpc('site_payment_fail', { p_id: order.id });
-        throw new PaymentError('O Mercado Pago não aceitou os dados. Consulte o resultado e inicie uma nova tentativa.', 422);
-      }
-      throw new PaymentError('Não foi possível confirmar o resultado. Use Consultar pagamento antes de tentar novamente.', 503);
-    }
-    if (!payment?.id) throw new PaymentError('Resultado ainda indisponível. Consulte o pagamento.', 503);
-    return json(req, { order: summary(await reconcile(payment)) });
+    throw new PaymentError('Operação inválida.');
   } catch (err) {
     const known = err instanceof PaymentError;
     if (!known) console.error('Payment request failed', err instanceof Error ? err.name : 'unknown');

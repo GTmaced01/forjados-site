@@ -6,9 +6,8 @@ export const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPA
 export const webhookUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/mercado-pago-webhook`;
 export const accessToken = Deno.env.get('MERCADO_PAGO_ACCESS_TOKEN') || '';
 export const webhookSecret = Deno.env.get('MERCADO_PAGO_WEBHOOK_SECRET') || '';
-export const publicKey = Deno.env.get('MERCADO_PAGO_PUBLIC_KEY') || '';
 export const mode = Deno.env.get('MERCADO_PAGO_MODE') || 'test';
-export const ready = Deno.env.get('MERCADO_PAGO_ENABLED') === 'true' && Boolean(accessToken && webhookSecret && publicKey) && ['test', 'production'].includes(mode);
+export const ready = Deno.env.get('MERCADO_PAGO_ENABLED') === 'true' && Boolean(accessToken && webhookSecret) && ['test', 'production'].includes(mode);
 
 export class PaymentError extends Error {
   constructor(message: string, public status = 400) { super(message); }
@@ -63,7 +62,7 @@ export async function limit(req: Request) {
 export type Order = {
   id: string; access_hash: string; categoria: 'participante' | 'equipe'; quantity: number; total_cents: number;
   status: string; provider_id: string | null; provider_updated_at: string | null; updated_at: string;
-  pix_code: string | null; pix_qr: string | null; provider_request: Record<string, unknown> | null;
+  checkout_started_at: string | null; pix_code: string | null; pix_qr: string | null;
 };
 export async function authorized(id: unknown, token: unknown): Promise<Order> {
   if (typeof id !== 'string' || !/^[a-f0-9-]{36}$/i.test(id) || typeof token !== 'string' || !/^[a-f0-9]{64}$/.test(token)) throw new PaymentError('Sessão de pagamento inválida.', 401);
@@ -74,6 +73,7 @@ export async function authorized(id: unknown, token: unknown): Promise<Order> {
 }
 export function summary(order: Order) {
   return { id: order.id, categoria: order.categoria, quantity: order.quantity, total: order.total_cents / 100,
+    checkoutStarted: Boolean(order.checkout_started_at),
     status: order.status, paymentId: order.provider_id, pixCode: order.status === 'pending' ? order.pix_code : null,
     pixQr: order.status === 'pending' ? order.pix_qr : null };
 }
