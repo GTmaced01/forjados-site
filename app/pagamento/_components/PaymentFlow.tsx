@@ -13,7 +13,7 @@ type Config = { ready: boolean; publicKey: string | null; mode: string };
 type Brick = { unmount: () => Promise<void> };
 type PaymentMethod = "card" | "pix";
 type BrickSettings = {
-  initialization: { amount: number; payer?: { email: string; identification: { type: string; number: string } } };
+  initialization: { amount: number; payer?: { email?: string; identification?: { type: string; number: string } } };
   customization: {
     visual: {
       hideFormTitle: boolean;
@@ -126,7 +126,11 @@ export function PaymentFlow({ audience }: { audience: PaymentAudience }) {
       controller = await provider.bricks().create("payment", `mercado-pago-${audience}-${paymentMethod}`, {
         initialization: {
           amount: orderTotal,
-          ...(payerEmail && payerDocument ? { payer: { email: payerEmail, identification: { type: "CPF", number: payerDocument } } } : {}),
+          ...(config.mode === "test" && paymentMethod === "card"
+            ? { payer: { email: "test@testuser.com" } }
+            : payerEmail && payerDocument
+              ? { payer: { email: payerEmail, identification: { type: "CPF", number: payerDocument } } }
+              : {}),
         },
         customization: {
           visual: {
@@ -187,7 +191,7 @@ export function PaymentFlow({ audience }: { audience: PaymentAudience }) {
       cancelled = true;
       brickQueue.current = brickQueue.current.catch(() => {}).then(async () => { if (controller) await controller.unmount(); });
     };
-  }, [session, orderId, orderStatus, orderTotal, sdkReady, config?.publicKey, audience, payerEmail, payerDocument, paymentMethod]);
+  }, [session, orderId, orderStatus, orderTotal, sdkReady, config?.publicKey, config?.mode, audience, payerEmail, payerDocument, paymentMethod]);
 
   useEffect(() => {
     if (!session || !orderStatus || terminal.includes(orderStatus) || orderStatus === "prepared") return;
@@ -339,6 +343,7 @@ export function PaymentFlow({ audience }: { audience: PaymentAudience }) {
                   </div>
                   <small>Total de {money(total)}. A opção escolhida será enviada ao Mercado Pago.</small>
                 </fieldset>}
+                {paymentMethod === "card" && config.mode === "test" && <p className={styles.testCardNote}>Teste do cartão: use o nome <strong>APRO</strong> e o CPF <strong>123.456.789-09</strong>. O CPF da inscrição não é preenchido aqui no modo de teste.</p>}
                 {!brickReady && <p className={styles.methodIntro}>Carregando formulário seguro…</p>}
                 <div id={`mercado-pago-${audience}-${paymentMethod}`} aria-busy={busy} />
               </div>}

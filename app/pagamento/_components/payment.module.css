@@ -122,6 +122,8 @@
 .installmentOption strong, .installmentSelected strong { color: #f5ead6; font-size: 1rem; }
 .installmentOption span, .installmentSelected span { color: var(--muted); font-size: .7rem; }
 .installmentPicker small { display: block; margin-top: 11px; color: var(--muted); font-size: .7rem; line-height: 1.45; }
+.testCardNote { margin: 0 0 18px; padding: 12px 14px; border-left: 3px solid #d4a657; background: #d4a6570d; color: #cfc7ba; font-size: .76rem; line-height: 1.55; }
+.testCardNote strong { color: #f2d9a9; }
 .identification { display: grid; gap: 20px; }
 .identification fieldset { border: 1px solid #3a3a3c; border-radius: 12px; padding: 18px; display: grid; gap: 16px; min-width: 0; }
 .identification legend { font-size: .875rem; color: var(--accent); font-weight: 600; padding: 0 8px; }
