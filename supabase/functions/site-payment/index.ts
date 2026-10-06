@@ -28,6 +28,13 @@ function people(value: unknown): Person[] {
   return result;
 }
 async function checkoutPreference(order: { id: string; categoria: string; quantity: number; total_cents: number }) {
+  if (mode === 'test') {
+    const sellerResponse = await mp('/users/me');
+    const seller = sellerResponse.ok ? await sellerResponse.json().catch(() => null) : null;
+    if (!Array.isArray(seller?.tags) || !seller.tags.includes('test_user')) {
+      throw new PaymentError('A credencial configurada não pertence a um vendedor de teste. Revise o Access Token de teste no Supabase.', 503);
+    }
+  }
   // Reuse an existing preference for this order so repeated clicks or a lost
   // browser response cannot create multiple checkout links.
   const search = await mp(`/checkout/preferences/search?external_reference=${encodeURIComponent(order.id)}`);

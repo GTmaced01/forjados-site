@@ -43,7 +43,7 @@ function harness(options = {}) {
     transaction_amount: 180, live_mode: true, installments: 1, payment_method_id: 'visa', payment_type_id: 'credit_card',
     status: 'approved', date_last_updated: '2026-10-05T12:00:00Z', ...options.provider });
   const fetch = async (url, init = {}) => {
-    if (url.endsWith('/users/me')) return Response.json({ id: 456 });
+    if (url.endsWith('/users/me')) return Response.json({ id: 456, tags: options.sellerTags || ['test_user'] });
     if (url.includes('/v1/payments/search?')) return Response.json({ results: options.searchPayments || [] });
     if (url.includes('/checkout/preferences/search?')) return Response.json({ elements: options.existingPreference ? [options.existingPreference] : [] });
     if (url.includes('/checkout/preferences/') && !url.includes('/search?')) return Response.json(options.existingPreference);
@@ -131,6 +131,13 @@ test('test credentials still redirect through init_point, not the broken sandbox
   const response = await h.call({ action: 'checkout', id: h.id, token: h.token });
   assert.equal(response.status, 200);
   assert.match((await response.json()).checkoutUrl, /^https:\/\/www\.mercadopago\.com\.br\/checkout/);
+});
+test('test mode refuses to create a checkout for a real seller', async () => {
+  const h = harness({ env: { MERCADO_PAGO_MODE: 'test' }, sellerTags: ['normal'] });
+  const response = await h.call({ action: 'checkout', id: h.id, token: h.token });
+  assert.equal(response.status, 503);
+  assert.match((await response.json()).error, /vendedor de teste/);
+  assert.equal(h.preferences.length, 0);
 });
 test('expired preference does not create a second payable link', async () => {
   const h = harness({ existingPreference: { id: 'mock-expired', external_reference: '10000000-0000-4000-8000-000000000001',
