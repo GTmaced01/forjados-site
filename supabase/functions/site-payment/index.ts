@@ -39,7 +39,7 @@ async function checkoutPreference(order: { id: string; categoria: string; quanti
     if (Date.parse(String(existing.expiration_date_to || '')) <= Date.now()) {
       throw new PaymentError('O prazo deste checkout terminou. Consulte a organização antes de iniciar outro pagamento.', 409);
     }
-    const url = trustedCheckoutUrl(mode === 'test' ? existing.sandbox_init_point : existing.init_point);
+    const url = trustedCheckoutUrl(existing.init_point);
     if (!url) throw new PaymentError('Não foi possível verificar o endereço do checkout.', 503);
     return url;
   }
@@ -87,7 +87,9 @@ async function checkoutPreference(order: { id: string; categoria: string; quanti
       ? 'A organização precisa revisar as credenciais do Mercado Pago.'
       : 'O Mercado Pago não conseguiu abrir o checkout agora. Tente novamente.', response.status === 401 ? 503 : 502);
   }
-  const url = trustedCheckoutUrl(mode === 'test' ? created?.sandbox_init_point : created?.init_point);
+  // Mercado Pago's Checkout Pro test purchases use the regular init_point;
+  // test credentials and a test buyer determine the simulated environment.
+  const url = trustedCheckoutUrl(created?.init_point);
   if (!url) throw new PaymentError('O Mercado Pago não devolveu um endereço de pagamento válido.', 503);
   return url;
 }

@@ -123,6 +123,12 @@ test('Checkout Pro reuses an existing preference for the same order', async () =
   assert.match((await response.json()).checkoutUrl, /pref_id=existing/);
   assert.equal(h.preferences.length, 0);
 });
+test('test credentials still redirect through init_point, not the broken sandbox URL', async () => {
+  const h = harness({ env: { MERCADO_PAGO_MODE: 'test' } });
+  const response = await h.call({ action: 'checkout', id: h.id, token: h.token });
+  assert.equal(response.status, 200);
+  assert.match((await response.json()).checkoutUrl, /^https:\/\/www\.mercadopago\.com\.br\/checkout/);
+});
 test('expired preference does not create a second payable link', async () => {
   const h = harness({ existingPreference: { external_reference: '10000000-0000-4000-8000-000000000001',
     expiration_date_to: new Date(Date.now() - 3600000).toISOString(), init_point: 'https://www.mercadopago.com.br/checkout/old' } });
