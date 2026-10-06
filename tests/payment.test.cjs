@@ -105,15 +105,16 @@ test('installments above three and debit card are refused before charging', asyn
     assert.equal(h.payments.length, 0);
   }
 });
-test('checkout shows separate Pix and card choices and offers card installments from 1x to 3x', () => {
+test('checkout uses the dedicated card Brick and accepts only provider-calculated installments up to 3x', () => {
   const source = readFileSync(resolve(__dirname, '../app/pagamento/_components/PaymentFlow.tsx'), 'utf8');
   assert.match(source, /Cartão de crédito/);
   assert.match(source, /QR Code e código Copia e Cola/);
-  assert.match(source, /creditCard: "all", minInstallments: 1, maxInstallments: 3/);
+  assert.match(source, /paymentMethod === "card" \? "cardPayment" : "payment"/);
+  assert.match(source, /excluded: \["debit_card", "prepaid_card"\]/);
+  assert.match(source, /minInstallments: 1, maxInstallments: 3/);
   assert.match(source, /bankTransfer: "pix", minInstallments: 1, maxInstallments: 1/);
-  assert.match(source, /defaultPaymentOption: paymentMethod === "card"/);
-  assert.match(source, /Escolha o número de parcelas/);
-  assert.match(source, /installments: cardInstallmentsRef\.current/);
+  assert.match(source, /parcelas liberadas pelo Mercado Pago/);
+  assert.doesNotMatch(source, /cardInstallmentsRef/);
   assert.match(source, /config\.mode === "test" && paymentMethod === "card"/);
   assert.match(source, /email: "test@testuser\.com"/);
   assert.match(source, /CPF <strong>123\.456\.789-09<\/strong>/);

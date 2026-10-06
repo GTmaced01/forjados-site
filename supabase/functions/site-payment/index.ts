@@ -1,6 +1,13 @@
 import { allowed, authorized, cors, db, hash, json, limit, mode, mp, PaymentError, publicKey, ready, reconcile, refresh, rpc, summary, webhookUrl } from '../_shared/payment.ts';
 
 type Person = { cpf: string; email: string };
+function safeProviderText(value: unknown) {
+  return String(value || '')
+    .replace(/[\w.+-]+@[\w.-]+\.[a-z]{2,}/gi, '[email]')
+    .replace(/\b\d{9,}\b/g, '[number]')
+    .replace(/[^\p{L}\p{N}\s.,:;_()\/-]/gu, '')
+    .trim().slice(0, 180);
+}
 function people(value: unknown): Person[] {
   if (!Array.isArray(value) || value.length < 1 || value.length > 20) throw new PaymentError('Selecione de 1 a 20 pessoas.');
   const result = value.map(person => {
@@ -104,11 +111,19 @@ Deno.serve(async req => {
     const response = await mp('/v1/payments', { method: 'POST', headers: { 'X-Idempotency-Key': order.id }, body: JSON.stringify(stored) });
     const payment = await response.json().catch(() => null);
     if (!response.ok) {
-      // Log only technical codes; provider messages may contain payer data.
-      const causeCodes = Array.isArray(payment?.cause) ? payment.cause
-        .map((cause: { code?: unknown }) => String(cause?.code || ''))
-        .filter((code: string) => /^\d{1,8}$/.test(code)).slice(0, 10) : [];
-      console.error('Mercado Pago payment rejected', { status: response.status, causeCodes });
+      // Keep enough sanitized provider detail to diagnose rejections without
+      // placing payer data or card tokens in logs.
+      const causes = Array.isArray(payment?.cause) ? payment.cause.slice(0, 10)
+        .map((cause: { code?: unknown; description?: unknown }) => ({
+          code: String(cause?.code || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 32),
+          description: safeProviderText(cause?.description),
+        })).filter((cause: { code: string; description: string }) => cause.code || cause.description) : [];
+      console.error('Mercado Pago payment rejected', {
+        status: response.status,
+        error: safeProviderText(payment?.error),
+        message: safeProviderText(payment?.message),
+        causes,
+      });
       // A rejected authentication never creates a payment; release this attempt.
       if (response.status === 401) {
         await rpc('site_payment_fail', { p_id: order.id });

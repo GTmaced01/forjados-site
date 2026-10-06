@@ -19,11 +19,16 @@ type BrickSettings = {
       hideFormTitle: boolean;
       style: { theme: string; customVariables: Record<string, string> };
       texts: Record<string, unknown>;
-      defaultPaymentOption: { creditCardForm?: boolean; bankTransferForm?: boolean };
+      defaultPaymentOption?: { bankTransferForm: boolean };
     };
-    paymentMethods: { creditCard?: string; bankTransfer?: string; minInstallments: number; maxInstallments: number };
+    paymentMethods: {
+      bankTransfer?: string;
+      minInstallments: number;
+      maxInstallments: number;
+      types?: { excluded: string[] };
+    };
   };
-  callbacks: { onReady: () => void; onError: (error: unknown) => void; onSubmit: (input: { formData: Record<string, unknown> }) => Promise<void> };
+  callbacks: { onReady: () => void; onError: (error: unknown) => void; onSubmit: (input: unknown) => Promise<void> };
 };
 declare global {
   interface Window {
@@ -72,12 +77,10 @@ export function PaymentFlow({ audience }: { audience: PaymentAudience }) {
   const [sdkReady, setSdkReady] = useState(false);
   const [brickReady, setBrickReady] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
-  const [cardInstallments, setCardInstallments] = useState<1 | 2 | 3>(1);
   const [copied, setCopied] = useState(false);
   const attempt = useRef<Session | null>(null);
   const activeRequest = useRef(false);
   const brickQueue = useRef<Promise<void>>(Promise.resolve());
-  const cardInstallmentsRef = useRef<1 | 2 | 3>(1);
   const orderId = order?.id;
   const orderStatus = order?.status;
   const orderTotal = order?.total;
@@ -123,7 +126,7 @@ export function PaymentFlow({ audience }: { audience: PaymentAudience }) {
       if (cancelled) return;
       setBrickReady(false);
       const provider = new window.MercadoPago(config.publicKey!, { locale: "pt-BR" });
-      controller = await provider.bricks().create("payment", `mercado-pago-${audience}-${paymentMethod}`, {
+      controller = await provider.bricks().create(paymentMethod === "card" ? "cardPayment" : "payment", `mercado-pago-${audience}-${paymentMethod}`, {
         initialization: {
           amount: orderTotal,
           ...(config.mode === "test" && paymentMethod === "card"
@@ -149,13 +152,13 @@ export function PaymentFlow({ audience }: { audience: PaymentAudience }) {
             texts: {
               emailSectionTitle: "Dados para confirmação",
               installmentsSectionTitle: "Parcelamento",
-              selectInstallments: "Escolha de 1 a 3 parcelas",
+              selectInstallments: "Escolha entre as parcelas disponíveis",
               formSubmit: "Confirmar pagamento",
             },
-            defaultPaymentOption: paymentMethod === "card" ? { creditCardForm: true } : { bankTransferForm: true },
+            ...(paymentMethod === "pix" ? { defaultPaymentOption: { bankTransferForm: true } } : {}),
           },
           paymentMethods: paymentMethod === "card"
-            ? { creditCard: "all", minInstallments: 1, maxInstallments: 3 }
+            ? { types: { excluded: ["debit_card", "prepaid_card"] }, minInstallments: 1, maxInstallments: 3 }
             : { bankTransfer: "pix", minInstallments: 1, maxInstallments: 1 },
         },
         callbacks: {
@@ -165,14 +168,19 @@ export function PaymentFlow({ audience }: { audience: PaymentAudience }) {
             console.error(`Mercado Pago Brick: ${detail}`);
             if (!cancelled) setError("Não foi possível carregar o formulário do Mercado Pago. Recarregue esta página.");
           },
-          onSubmit: async ({ formData }) => {
+          onSubmit: async submission => {
             if (activeRequest.current) throw new Error("Aguarde a confirmação da tentativa em andamento.");
             activeRequest.current = true;
             setBusy(true); setError("");
             try {
-              const submittedForm = paymentMethod === "card"
-                ? { ...formData, installments: cardInstallmentsRef.current }
-                : { ...formData, installments: 1 };
+              // Card Payment Brick returns formData directly. Payment Brick
+              // wraps it together with the selected payment method.
+              const formData = paymentMethod === "card"
+                ? submission as Record<string, unknown>
+                : ((submission as { formData?: Record<string, unknown> })?.formData || {});
+              // Never override card installments here: the provider calculates
+              // the valid plans from the BIN and returns the user's selection.
+              const submittedForm = paymentMethod === "pix" ? { ...formData, installments: 1 } : formData;
               const result = await api({ action: "create", ...session, formData: submittedForm });
               setOrder(result.order);
             } catch (err) {
@@ -217,10 +225,6 @@ export function PaymentFlow({ audience }: { audience: PaymentAudience }) {
     setPersons(current => current.map((person, i) => i === index ? { ...person, [name]: value } : person));
     attempt.current = null;
   }
-  function chooseInstallments(value: 1 | 2 | 3) {
-    cardInstallmentsRef.current = value;
-    setCardInstallments(value);
-  }
   async function prepare(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (activeRequest.current || !config?.ready) return;
@@ -256,8 +260,7 @@ export function PaymentFlow({ audience }: { audience: PaymentAudience }) {
       catch (err) { setError(err instanceof Error ? err.message : "Não foi possível alterar o pedido."); return; }
       finally { activeRequest.current = false; setBusy(false); }
     }
-    cardInstallmentsRef.current = 1;
-    setOrder(null); setSession(null); setBrickReady(false); setPaymentMethod(null); setCardInstallments(1); setError(""); attempt.current = null;
+    setOrder(null); setSession(null); setBrickReady(false); setPaymentMethod(null); setError(""); attempt.current = null;
     try { localStorage.removeItem(storageKey); } catch { /* Optional persistence. */ }
   }
   const qty = order?.quantity || persons.length;
@@ -315,7 +318,7 @@ export function PaymentFlow({ audience }: { audience: PaymentAudience }) {
                   <input type="radio" name={`payment-method-${audience}`} value="card" checked={paymentMethod === "card"} disabled={busy} onChange={() => { setBrickReady(false); setError(""); setPaymentMethod("card"); }} />
                   <span className={styles.choiceRadio} aria-hidden="true" />
                   <span className={styles.choiceIcon} aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><rect x="2.5" y="5" width="19" height="14" rx="2.5" stroke="currentColor" strokeWidth="1.7"/><path d="M3 9h18" stroke="currentColor" strokeWidth="1.7"/><path d="M6 15h4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg></span>
-                  <span className={styles.choiceCopy}><strong>Cartão de crédito</strong><small>Escolha 1x, 2x ou 3x no formulário</small></span>
+                  <span className={styles.choiceCopy}><strong>Cartão de crédito</strong><small>Parcelas calculadas com segurança pelo Mercado Pago</small></span>
                   <span className={styles.choiceTag}>até 3x</span>
                 </label>
                 <label className={paymentMethod === "pix" ? styles.paymentChoiceSelected : styles.paymentChoice}>
@@ -330,19 +333,8 @@ export function PaymentFlow({ audience }: { audience: PaymentAudience }) {
               {paymentMethod && <div className={styles.selectedMethodForm}>
                 <div className={styles.selectedMethodHeader}>
                   <strong>{paymentMethod === "card" ? "Pagamento com cartão" : "Pagamento com Pix"}</strong>
-                  {paymentMethod === "card" && <span>Escolha as parcelas antes de confirmar.</span>}
+                  {paymentMethod === "card" && <span>Após digitar o cartão, escolha uma das parcelas liberadas pelo Mercado Pago.</span>}
                 </div>
-                {paymentMethod === "card" && <fieldset className={styles.installmentPicker}>
-                  <legend>Escolha o número de parcelas</legend>
-                  <div className={styles.installmentOptions}>
-                    {([1, 2, 3] as const).map(value => <label key={value} className={cardInstallments === value ? styles.installmentSelected : styles.installmentOption}>
-                      <input type="radio" name={`card-installments-${audience}`} value={value} checked={cardInstallments === value} disabled={busy} onChange={() => chooseInstallments(value)} />
-                      <strong>{value}x</strong>
-                      <span>{money(total / value)}</span>
-                    </label>)}
-                  </div>
-                  <small>Total de {money(total)}. A opção escolhida será enviada ao Mercado Pago.</small>
-                </fieldset>}
                 {paymentMethod === "card" && config.mode === "test" && <p className={styles.testCardNote}>Teste do cartão: use o nome <strong>APRO</strong> e o CPF <strong>123.456.789-09</strong>. O CPF da inscrição não é preenchido aqui no modo de teste.</p>}
                 {!brickReady && <p className={styles.methodIntro}>Carregando formulário seguro…</p>}
                 <div id={`mercado-pago-${audience}-${paymentMethod}`} aria-busy={busy} />
