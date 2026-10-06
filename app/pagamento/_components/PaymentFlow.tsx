@@ -23,7 +23,7 @@ type BrickSettings = {
     };
     paymentMethods: { creditCard?: string; bankTransfer?: string; minInstallments: number; maxInstallments: number };
   };
-  callbacks: { onReady: () => void; onError: () => void; onSubmit: (input: { formData: Record<string, unknown> }) => Promise<void> };
+  callbacks: { onReady: () => void; onError: (error: unknown) => void; onSubmit: (input: { formData: Record<string, unknown> }) => Promise<void> };
 };
 declare global {
   interface Window {
@@ -154,7 +154,11 @@ export function PaymentFlow({ audience }: { audience: PaymentAudience }) {
         },
         callbacks: {
           onReady: () => { if (!cancelled) setBrickReady(true); },
-          onError: () => { if (!cancelled) setError("Não foi possível carregar o formulário do Mercado Pago. Recarregue esta página."); },
+          onError: brickError => {
+            const detail = brickError instanceof Error ? brickError.message : JSON.stringify(brickError);
+            console.error(`Mercado Pago Brick: ${detail}`);
+            if (!cancelled) setError("Não foi possível carregar o formulário do Mercado Pago. Recarregue esta página.");
+          },
           onSubmit: async ({ formData }) => {
             if (activeRequest.current) throw new Error("Aguarde a confirmação da tentativa em andamento.");
             activeRequest.current = true;
