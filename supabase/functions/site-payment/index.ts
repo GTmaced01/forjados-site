@@ -36,10 +36,16 @@ async function checkoutPreference(order: { id: string; categoria: string; quanti
   const existing = Array.isArray(searchBody?.elements) ? searchBody.elements.find((item: Record<string, unknown>) =>
     item?.external_reference === order.id) : null;
   if (existing) {
-    if (Date.parse(String(existing.expiration_date_to || '')) <= Date.now()) {
+    // Search returns a summary; the detail endpoint supplies the checkout URL.
+    if (!/^[a-zA-Z0-9-]{1,100}$/.test(String(existing.id || ''))) throw new PaymentError('Preferência inválida.', 503);
+    const detailResponse = await mp(`/checkout/preferences/${existing.id}`);
+    if (!detailResponse.ok) throw new PaymentError('Não foi possível consultar o checkout existente.', 503);
+    const detail = await detailResponse.json().catch(() => null);
+    if (detail?.external_reference !== order.id) throw new PaymentError('Preferência divergente.', 503);
+    if (Date.parse(String(detail.expiration_date_to || '')) <= Date.now()) {
       throw new PaymentError('O prazo deste checkout terminou. Consulte a organização antes de iniciar outro pagamento.', 409);
     }
-    const url = trustedCheckoutUrl(existing.init_point);
+    const url = trustedCheckoutUrl(detail.init_point);
     if (!url) throw new PaymentError('Não foi possível verificar o endereço do checkout.', 503);
     return url;
   }

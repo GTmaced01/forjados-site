@@ -44,6 +44,7 @@ function harness(options = {}) {
     if (url.endsWith('/users/me')) return Response.json({ id: 456 });
     if (url.includes('/v1/payments/search?')) return Response.json({ results: options.searchPayments || [] });
     if (url.includes('/checkout/preferences/search?')) return Response.json({ elements: options.existingPreference ? [options.existingPreference] : [] });
+    if (url.includes('/checkout/preferences/') && !url.includes('/search?')) return Response.json(options.existingPreference);
     if (url.endsWith('/checkout/preferences') && init.method === 'POST') {
       preferences.push({ request: JSON.parse(init.body), key: init.headers['X-Idempotency-Key'] });
       if (options.preferenceHttpStatus) return Response.json({ error: 'provider_unavailable' }, { status: options.preferenceHttpStatus });
@@ -115,7 +116,7 @@ test('Checkout Pro preference uses server total, webhook, return URLs and maximu
   assert.match(preference.request.back_urls.success, /pagamento\?retorno=success$/);
 });
 test('Checkout Pro reuses an existing preference for the same order', async () => {
-  const h = harness({ existingPreference: { external_reference: '10000000-0000-4000-8000-000000000001',
+  const h = harness({ existingPreference: { id: 'mock-existing', external_reference: '10000000-0000-4000-8000-000000000001',
     expiration_date_to: new Date(Date.now() + 3600000).toISOString(),
     init_point: 'https://www.mercadopago.com.br/checkout/v1/redirect?pref_id=existing' } });
   const response = await h.call({ action: 'checkout', id: h.id, token: h.token });
@@ -130,7 +131,7 @@ test('test credentials still redirect through init_point, not the broken sandbox
   assert.match((await response.json()).checkoutUrl, /^https:\/\/www\.mercadopago\.com\.br\/checkout/);
 });
 test('expired preference does not create a second payable link', async () => {
-  const h = harness({ existingPreference: { external_reference: '10000000-0000-4000-8000-000000000001',
+  const h = harness({ existingPreference: { id: 'mock-expired', external_reference: '10000000-0000-4000-8000-000000000001',
     expiration_date_to: new Date(Date.now() - 3600000).toISOString(), init_point: 'https://www.mercadopago.com.br/checkout/old' } });
   assert.equal((await h.call({ action: 'checkout', id: h.id, token: h.token })).status, 409);
   assert.equal(h.preferences.length, 0);
