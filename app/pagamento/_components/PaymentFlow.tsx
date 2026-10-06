@@ -72,10 +72,12 @@ export function PaymentFlow({ audience }: { audience: PaymentAudience }) {
   const [sdkReady, setSdkReady] = useState(false);
   const [brickReady, setBrickReady] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
+  const [cardInstallments, setCardInstallments] = useState<1 | 2 | 3>(1);
   const [copied, setCopied] = useState(false);
   const attempt = useRef<Session | null>(null);
   const activeRequest = useRef(false);
   const brickQueue = useRef<Promise<void>>(Promise.resolve());
+  const cardInstallmentsRef = useRef<1 | 2 | 3>(1);
   const orderId = order?.id;
   const orderStatus = order?.status;
   const orderTotal = order?.total;
@@ -164,7 +166,10 @@ export function PaymentFlow({ audience }: { audience: PaymentAudience }) {
             activeRequest.current = true;
             setBusy(true); setError("");
             try {
-              const result = await api({ action: "create", ...session, formData });
+              const submittedForm = paymentMethod === "card"
+                ? { ...formData, installments: cardInstallmentsRef.current }
+                : { ...formData, installments: 1 };
+              const result = await api({ action: "create", ...session, formData: submittedForm });
               setOrder(result.order);
             } catch (err) {
               const message = err instanceof Error ? err.message : "Não foi possível confirmar o pagamento.";
@@ -208,6 +213,10 @@ export function PaymentFlow({ audience }: { audience: PaymentAudience }) {
     setPersons(current => current.map((person, i) => i === index ? { ...person, [name]: value } : person));
     attempt.current = null;
   }
+  function chooseInstallments(value: 1 | 2 | 3) {
+    cardInstallmentsRef.current = value;
+    setCardInstallments(value);
+  }
   async function prepare(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (activeRequest.current || !config?.ready) return;
@@ -243,7 +252,8 @@ export function PaymentFlow({ audience }: { audience: PaymentAudience }) {
       catch (err) { setError(err instanceof Error ? err.message : "Não foi possível alterar o pedido."); return; }
       finally { activeRequest.current = false; setBusy(false); }
     }
-    setOrder(null); setSession(null); setBrickReady(false); setPaymentMethod(null); setError(""); attempt.current = null;
+    cardInstallmentsRef.current = 1;
+    setOrder(null); setSession(null); setBrickReady(false); setPaymentMethod(null); setCardInstallments(1); setError(""); attempt.current = null;
     try { localStorage.removeItem(storageKey); } catch { /* Optional persistence. */ }
   }
   const qty = order?.quantity || persons.length;
@@ -316,8 +326,19 @@ export function PaymentFlow({ audience }: { audience: PaymentAudience }) {
               {paymentMethod && <div className={styles.selectedMethodForm}>
                 <div className={styles.selectedMethodHeader}>
                   <strong>{paymentMethod === "card" ? "Pagamento com cartão" : "Pagamento com Pix"}</strong>
-                  {paymentMethod === "card" && <span>As parcelas aparecem após informar o número do cartão.</span>}
+                  {paymentMethod === "card" && <span>Escolha as parcelas antes de confirmar.</span>}
                 </div>
+                {paymentMethod === "card" && <fieldset className={styles.installmentPicker}>
+                  <legend>Escolha o número de parcelas</legend>
+                  <div className={styles.installmentOptions}>
+                    {([1, 2, 3] as const).map(value => <label key={value} className={cardInstallments === value ? styles.installmentSelected : styles.installmentOption}>
+                      <input type="radio" name={`card-installments-${audience}`} value={value} checked={cardInstallments === value} disabled={busy} onChange={() => chooseInstallments(value)} />
+                      <strong>{value}x</strong>
+                      <span>{money(total / value)}</span>
+                    </label>)}
+                  </div>
+                  <small>Total de {money(total)}. A opção escolhida será enviada ao Mercado Pago.</small>
+                </fieldset>}
                 {!brickReady && <p className={styles.methodIntro}>Carregando formulário seguro…</p>}
                 <div id={`mercado-pago-${audience}-${paymentMethod}`} aria-busy={busy} />
               </div>}

@@ -112,6 +112,16 @@
 .selectedMethodHeader { display: flex; justify-content: space-between; gap: 18px; align-items: baseline; margin-bottom: 14px; }
 .selectedMethodHeader strong { font-size: .9rem; }
 .selectedMethodHeader span { color: var(--muted); font-size: .72rem; line-height: 1.45; text-align: right; }
+.installmentPicker { margin: 0 0 18px; padding: 16px; border: 1px solid #4a4031; border-radius: 12px; background: #0f0f10; }
+.installmentPicker legend { padding: 0 8px; color: #eee8dd; font-size: .82rem; font-weight: 700; }
+.installmentOptions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.installmentOption, .installmentSelected { position: relative; display: grid; gap: 3px; padding: 12px 8px; border: 1px solid #454039; border-radius: 10px; text-align: center; cursor: pointer; transition: border-color .18s, background .18s, box-shadow .18s; }
+.installmentOption:hover { border-color: #7a633e; background: #181613; }
+.installmentSelected { border-color: var(--accent); background: #d4a65716; box-shadow: inset 0 0 0 1px #d4a65755; }
+.installmentOption input, .installmentSelected input { position: absolute; opacity: 0; pointer-events: none; }
+.installmentOption strong, .installmentSelected strong { color: #f5ead6; font-size: 1rem; }
+.installmentOption span, .installmentSelected span { color: var(--muted); font-size: .7rem; }
+.installmentPicker small { display: block; margin-top: 11px; color: var(--muted); font-size: .7rem; line-height: 1.45; }
 .identification { display: grid; gap: 20px; }
 .identification fieldset { border: 1px solid #3a3a3c; border-radius: 12px; padding: 18px; display: grid; gap: 16px; min-width: 0; }
 .identification legend { font-size: .875rem; color: var(--accent); font-weight: 600; padding: 0 8px; }
@@ -163,6 +173,9 @@
   .choiceTag { display: none; }
   .selectedMethodHeader { display: block; }
   .selectedMethodHeader span { display: block; margin-top: 6px; text-align: left; }
+  .installmentPicker { padding: 14px 12px; }
+  .installmentOptions { gap: 7px; }
+  .installmentOption, .installmentSelected { padding-inline: 5px; }
   .checkoutHeader { display: block; }
   .provider { display: inline-block; margin-top: 14px; }
   .methods { grid-template-columns: 1fr; }

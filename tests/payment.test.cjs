@@ -112,6 +112,8 @@ test('checkout shows separate Pix and card choices and offers card installments 
   assert.match(source, /creditCard: "all", minInstallments: 1, maxInstallments: 3/);
   assert.match(source, /bankTransfer: "pix", minInstallments: 1, maxInstallments: 1/);
   assert.match(source, /defaultPaymentOption: paymentMethod === "card"/);
+  assert.match(source, /Escolha o número de parcelas/);
+  assert.match(source, /installments: cardInstallmentsRef\.current/);
   assert.match(source, /secondarySuccessColor/);
   assert.doesNotMatch(source, /successSecondaryColor/);
 });
