@@ -11,6 +11,7 @@ type Order = { id: string; categoria: string; quantity: number; total: number; s
 type Session = { id: string; token: string };
 type Config = { ready: boolean; publicKey: string | null; mode: string };
 type Brick = { unmount: () => Promise<void> };
+type PaymentMethod = "card" | "pix";
 type BrickSettings = {
   initialization: { amount: number; payer?: { email: string; identification: { type: string; number: string } } };
   customization: {
@@ -18,8 +19,9 @@ type BrickSettings = {
       hideFormTitle: boolean;
       style: { theme: string; customVariables: Record<string, string> };
       texts: Record<string, unknown>;
+      defaultPaymentOption: { creditCardForm?: boolean; bankTransferForm?: boolean };
     };
-    paymentMethods: { creditCard: string; bankTransfer: string; minInstallments: number; maxInstallments: number };
+    paymentMethods: { creditCard?: string; bankTransfer?: string; minInstallments: number; maxInstallments: number };
   };
   callbacks: { onReady: () => void; onError: () => void; onSubmit: (input: { formData: Record<string, unknown> }) => Promise<void> };
 };
@@ -69,6 +71,7 @@ export function PaymentFlow({ audience }: { audience: PaymentAudience }) {
   const [error, setError] = useState("");
   const [sdkReady, setSdkReady] = useState(false);
   const [brickReady, setBrickReady] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
   const [copied, setCopied] = useState(false);
   const attempt = useRef<Session | null>(null);
   const activeRequest = useRef(false);
@@ -111,14 +114,14 @@ export function PaymentFlow({ audience }: { audience: PaymentAudience }) {
 
   // Serialized mount/unmount handles React Strict Mode and navigation safely.
   useEffect(() => {
-    if (!session || !orderId || !orderTotal || orderStatus !== "prepared" || !sdkReady || !config?.publicKey) return;
+    if (!session || !orderId || !orderTotal || orderStatus !== "prepared" || !sdkReady || !config?.publicKey || !paymentMethod) return;
     let cancelled = false;
     let controller: Brick | undefined;
     brickQueue.current = brickQueue.current.catch(() => {}).then(async () => {
       if (cancelled) return;
       setBrickReady(false);
       const provider = new window.MercadoPago(config.publicKey!, { locale: "pt-BR" });
-      controller = await provider.bricks().create("payment", `mercado-pago-${audience}`, {
+      controller = await provider.bricks().create("payment", `mercado-pago-${audience}-${paymentMethod}`, {
         initialization: {
           amount: orderTotal,
           ...(payerEmail && payerDocument ? { payer: { email: payerEmail, identification: { type: "CPF", number: payerDocument } } } : {}),
@@ -147,8 +150,11 @@ export function PaymentFlow({ audience }: { audience: PaymentAudience }) {
                 pixTitle: "Pix", pixValueProp: "QR Code e Copia e Cola",
               },
             },
+            defaultPaymentOption: paymentMethod === "card" ? { creditCardForm: true } : { bankTransferForm: true },
           },
-          paymentMethods: { creditCard: "all", bankTransfer: "all", minInstallments: 1, maxInstallments: 3 },
+          paymentMethods: paymentMethod === "card"
+            ? { creditCard: "all", minInstallments: 1, maxInstallments: 3 }
+            : { bankTransfer: "pix", minInstallments: 1, maxInstallments: 1 },
         },
         callbacks: {
           onReady: () => { if (!cancelled) setBrickReady(true); },
@@ -176,7 +182,7 @@ export function PaymentFlow({ audience }: { audience: PaymentAudience }) {
       cancelled = true;
       brickQueue.current = brickQueue.current.catch(() => {}).then(async () => { if (controller) await controller.unmount(); });
     };
-  }, [session, orderId, orderStatus, orderTotal, sdkReady, config?.publicKey, audience, payerEmail, payerDocument]);
+  }, [session, orderId, orderStatus, orderTotal, sdkReady, config?.publicKey, audience, payerEmail, payerDocument, paymentMethod]);
 
   useEffect(() => {
     if (!session || !orderStatus || terminal.includes(orderStatus) || orderStatus === "prepared") return;
@@ -237,7 +243,7 @@ export function PaymentFlow({ audience }: { audience: PaymentAudience }) {
       catch (err) { setError(err instanceof Error ? err.message : "Não foi possível alterar o pedido."); return; }
       finally { activeRequest.current = false; setBusy(false); }
     }
-    setOrder(null); setSession(null); setBrickReady(false); setError(""); attempt.current = null;
+    setOrder(null); setSession(null); setBrickReady(false); setPaymentMethod(null); setError(""); attempt.current = null;
     try { localStorage.removeItem(storageKey); } catch { /* Optional persistence. */ }
   }
   const qty = order?.quantity || persons.length;
@@ -284,14 +290,37 @@ export function PaymentFlow({ audience }: { audience: PaymentAudience }) {
           {config?.mode === "test" && <p className={styles.error}>Ambiente de testes: utilize somente os dados de teste do Mercado Pago.</p>}
           {order.status === "prepared" && config?.publicKey && <>
             <Script src="https://sdk.mercadopago.com/js/v2" strategy="afterInteractive" onReady={() => setSdkReady(true)} onError={() => setError("Não foi possível carregar o Mercado Pago. Verifique sua conexão.")} />
-            {!brickReady && <p className={styles.methodIntro}>Carregando formulário seguro…</p>}
             <div className={styles.brickShell}>
               <div className={styles.brickHeading}>
-                <div><span className={styles.eyebrow}>Pagamento seguro</span><h3>Escolha como deseja pagar</h3></div>
+                <div><span className={styles.eyebrow}>Pagamento seguro</span><h3>Meios de pagamento</h3></div>
                 <span className={styles.secureBadge}>Mercado Pago</span>
               </div>
-              <p className={styles.brickDescription}>Pix à vista ou cartão de crédito em até 3 parcelas.</p>
-              <div id={`mercado-pago-${audience}`} aria-busy={busy} />
+              <p className={styles.brickDescription}>Selecione uma opção para abrir somente os campos necessários.</p>
+              <div className={styles.paymentChoiceList} role="radiogroup" aria-label="Meios de pagamento">
+                <label className={paymentMethod === "card" ? styles.paymentChoiceSelected : styles.paymentChoice}>
+                  <input type="radio" name={`payment-method-${audience}`} value="card" checked={paymentMethod === "card"} disabled={busy} onChange={() => { setBrickReady(false); setError(""); setPaymentMethod("card"); }} />
+                  <span className={styles.choiceRadio} aria-hidden="true" />
+                  <span className={styles.choiceIcon} aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><rect x="2.5" y="5" width="19" height="14" rx="2.5" stroke="currentColor" strokeWidth="1.7"/><path d="M3 9h18" stroke="currentColor" strokeWidth="1.7"/><path d="M6 15h4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg></span>
+                  <span className={styles.choiceCopy}><strong>Cartão de crédito</strong><small>Escolha 1x, 2x ou 3x no formulário</small></span>
+                  <span className={styles.choiceTag}>até 3x</span>
+                </label>
+                <label className={paymentMethod === "pix" ? styles.paymentChoiceSelected : styles.paymentChoice}>
+                  <input type="radio" name={`payment-method-${audience}`} value="pix" checked={paymentMethod === "pix"} disabled={busy} onChange={() => { setBrickReady(false); setError(""); setPaymentMethod("pix"); }} />
+                  <span className={styles.choiceRadio} aria-hidden="true" />
+                  <span className={`${styles.choiceIcon} ${styles.pixChoiceIcon}`} aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="m12 3 5.2 5.2a2.55 2.55 0 0 0 3.6 0M12 3 6.8 8.2a2.55 2.55 0 0 1-3.6 0M12 21l5.2-5.2a2.55 2.55 0 0 1 3.6 0M12 21l-5.2-5.2a2.55 2.55 0 0 0-3.6 0M8.3 12h7.4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/></svg></span>
+                  <span className={styles.choiceCopy}><strong>Pix</strong><small>QR Code e código Copia e Cola</small></span>
+                  <span className={styles.choiceTag}>à vista</span>
+                </label>
+              </div>
+              {!paymentMethod && <p className={styles.methodPrompt}>Escolha Pix ou cartão de crédito para continuar.</p>}
+              {paymentMethod && <div className={styles.selectedMethodForm}>
+                <div className={styles.selectedMethodHeader}>
+                  <strong>{paymentMethod === "card" ? "Pagamento com cartão" : "Pagamento com Pix"}</strong>
+                  {paymentMethod === "card" && <span>As parcelas aparecem após informar o número do cartão.</span>}
+                </div>
+                {!brickReady && <p className={styles.methodIntro}>Carregando formulário seguro…</p>}
+                <div id={`mercado-pago-${audience}-${paymentMethod}`} aria-busy={busy} />
+              </div>}
             </div>
           </>}
           {order.pixCode && <div className={styles.pix}>

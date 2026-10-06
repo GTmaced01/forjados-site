@@ -92,6 +92,26 @@
 .brickHeading h3 { margin: 6px 0 0; font-size: 1.1rem; font-weight: 700; letter-spacing: -.02em; }
 .secureBadge { flex: 0 0 auto; border: 1px solid #5b4a31; border-radius: 999px; padding: 7px 10px; color: #dcc18f; font-size: .72rem; font-weight: 650; }
 .brickDescription { margin: 14px 0 20px; color: var(--muted); font-size: .84rem; line-height: 1.55; }
+.paymentChoiceList { display: grid; border: 1px solid #38342e; border-radius: 14px; overflow: hidden; background: #101011; }
+.paymentChoice, .paymentChoiceSelected { position: relative; display: grid; grid-template-columns: 20px 44px minmax(0, 1fr) auto; align-items: center; gap: 13px; padding: 16px 18px; color: #f0ede7; cursor: pointer; transition: background .18s, box-shadow .18s; }
+.paymentChoice + .paymentChoice, .paymentChoice + .paymentChoiceSelected, .paymentChoiceSelected + .paymentChoice, .paymentChoiceSelected + .paymentChoiceSelected { border-top: 1px solid #302d29; }
+.paymentChoice:hover { background: #191817; }
+.paymentChoiceSelected { background: #d4a6570e; box-shadow: inset 3px 0 var(--accent); }
+.paymentChoice input, .paymentChoiceSelected input { position: absolute; opacity: 0; pointer-events: none; }
+.choiceRadio { width: 18px; height: 18px; border: 2px solid #7d7972; border-radius: 50%; box-shadow: inset 0 0 0 4px #101011; background: transparent; }
+.paymentChoiceSelected .choiceRadio { border-color: var(--accent); background: var(--accent); }
+.choiceIcon { display: grid; place-items: center; width: 42px; height: 42px; border: 1px solid #48433b; border-radius: 50%; color: #dec18d; background: #181716; }
+.choiceIcon svg { width: 23px; height: 23px; }
+.pixChoiceIcon { color: #55d5c2; }
+.choiceCopy { min-width: 0; }
+.choiceCopy strong { display: block; font-size: .9rem; font-weight: 700; }
+.choiceCopy small { display: block; margin-top: 4px; color: var(--muted); font-size: .76rem; line-height: 1.4; }
+.choiceTag { padding: 6px 9px; border: 1px solid #574a36; border-radius: 999px; color: #dcc18f; font-size: .7rem; font-weight: 650; white-space: nowrap; }
+.methodPrompt { margin: 16px 0 0; padding: 13px 14px; border: 1px dashed #474139; border-radius: 10px; color: #bdb7ad; font-size: .8rem; text-align: center; }
+.selectedMethodForm { margin-top: 18px; padding-top: 18px; border-top: 1px solid #302d29; }
+.selectedMethodHeader { display: flex; justify-content: space-between; gap: 18px; align-items: baseline; margin-bottom: 14px; }
+.selectedMethodHeader strong { font-size: .9rem; }
+.selectedMethodHeader span { color: var(--muted); font-size: .72rem; line-height: 1.45; text-align: right; }
 .identification { display: grid; gap: 20px; }
 .identification fieldset { border: 1px solid #3a3a3c; border-radius: 12px; padding: 18px; display: grid; gap: 16px; min-width: 0; }
 .identification legend { font-size: .875rem; color: var(--accent); font-weight: 600; padding: 0 8px; }
@@ -138,6 +158,11 @@
   .brickShell { padding: 18px 14px; margin-inline: -4px; }
   .brickHeading { align-items: flex-start; }
   .secureBadge { font-size: .68rem; }
+  .paymentChoice, .paymentChoiceSelected { grid-template-columns: 18px 40px minmax(0, 1fr); gap: 11px; padding: 15px 13px; }
+  .choiceIcon { width: 38px; height: 38px; }
+  .choiceTag { display: none; }
+  .selectedMethodHeader { display: block; }
+  .selectedMethodHeader span { display: block; margin-top: 6px; text-align: left; }
   .checkoutHeader { display: block; }
   .provider { display: inline-block; margin-top: 14px; }
   .methods { grid-template-columns: 1fr; }

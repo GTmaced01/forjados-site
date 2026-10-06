@@ -105,6 +105,14 @@ test('installments above three and debit card are refused before charging', asyn
     assert.equal(h.payments.length, 0);
   }
 });
+test('checkout shows separate Pix and card choices and offers card installments from 1x to 3x', () => {
+  const source = readFileSync(resolve(__dirname, '../app/pagamento/_components/PaymentFlow.tsx'), 'utf8');
+  assert.match(source, /Cartão de crédito/);
+  assert.match(source, /QR Code e código Copia e Cola/);
+  assert.match(source, /creditCard: "all", minInstallments: 1, maxInstallments: 3/);
+  assert.match(source, /bankTransfer: "pix", minInstallments: 1, maxInstallments: 1/);
+  assert.match(source, /defaultPaymentOption: paymentMethod === "card"/);
+});
 test('Pix uses the CPF from the linked registration when Payment Brick sends only email', async () => {
   const h = harness({ provider: { payment_method_id: 'pix', payment_type_id: 'bank_transfer', status: 'pending' } });
   const response = await h.call({ action: 'create', id: h.id, token: h.token,
