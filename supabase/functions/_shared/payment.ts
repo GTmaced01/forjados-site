@@ -101,7 +101,8 @@ export async function reconcile(payment: Record<string, unknown>) {
       payment.live_mode !== (mode === 'production') || (order.provider_id && order.provider_id !== id)) {
     throw new PaymentError('Pagamento não corresponde ao pedido.', 409);
   }
-  if (payment.payment_method_id !== 'pix' && (payment.payment_type_id !== 'credit_card' ||
+  const accountMoney = payment.payment_method_id === 'account_money' && payment.payment_type_id === 'account_money';
+  if (payment.payment_method_id !== 'pix' && !accountMoney && (payment.payment_type_id !== 'credit_card' ||
       !Number.isInteger(payment.installments) || Number(payment.installments) < 1 || Number(payment.installments) > 3)) {
     throw new PaymentError('Forma de pagamento não permitida.', 409);
   }

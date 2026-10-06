@@ -195,7 +195,7 @@ export function PaymentFlow({ audience }: { audience: PaymentAudience }) {
             <button type="button" aria-label="Aumentar quantidade" disabled={busy || persons.length >= 20} onClick={() => quantity(persons.length + 1)}>+</button></div>
           <small>Até 20 pessoas da mesma categoria por pagamento.</small>
         </div>}
-        <div className={styles.total}><span>Total do pedido</span><strong>{money(total)}</strong><p>Pix à vista ou cartão de crédito em até 3x. Confira o valor das parcelas e eventuais juros no Mercado Pago antes de confirmar.</p></div>
+        <div className={styles.total}><span>Total do pedido</span><strong>{money(total)}</strong><p>Pix à vista ou cartão de crédito em até 3x. O Mercado Pago também pode oferecer saldo em conta. Confira as opções, parcelas e eventuais juros antes de confirmar.</p></div>
         <div className={styles.registrationNote}><p>Cada pessoa precisa preencher sua ficha antes do pagamento. Use o mesmo CPF e e-mail da inscrição.</p><Link href={audience === "team" ? "/inscricaoequipe" : "/inscricao"}>Preencher ficha {audience === "team" ? "da equipe" : "de inscrição"}</Link></div>
       </aside>
       <section className={styles.checkout} aria-labelledby="checkout-title">

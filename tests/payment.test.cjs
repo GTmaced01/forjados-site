@@ -167,6 +167,17 @@ test('foreign collector, mismatched amount and wrong environment never confirm p
     assert.notEqual(h.order.status, 'approved');
   }
 });
+test('account balance charged by Checkout Pro is reconciled after provider verification', async () => {
+  const h = harness({ webhook: true, provider: { payment_method_id: 'account_money', payment_type_id: 'account_money' } });
+  const url = 'https://example.supabase.co/functions/v1/mercado-pago-webhook?data.id=123';
+  const timestamp = String(Math.floor(Date.now() / 1000));
+  const signature = createHmac('sha256', h.env.MERCADO_PAGO_WEBHOOK_SECRET)
+    .update(`id:123;request-id:balance-test;ts:${timestamp};`).digest('hex');
+  const response = await h.handler(new Request(url, { method: 'POST',
+    headers: { 'x-signature': `ts=${timestamp},v1=${signature}`, 'x-request-id': 'balance-test' } }));
+  assert.equal(response.status, 200);
+  assert.equal(h.order.status, 'approved');
+});
 test('rate limit and duplicate identities reject bulk preparation', async () => {
   const h = harness({ rateAllowed: false });
   assert.equal((await h.call({ action: 'prepare' })).status, 429);
