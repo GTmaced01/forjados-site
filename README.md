@@ -17,7 +17,6 @@ A aplicação foi desenvolvida para centralizar a apresentação do evento e red
 - envio de foto e autorização do responsável, sem exigir pagamento na inscrição;
 - aceite de termo de participação, política de privacidade e uso de imagem;
 - fluxo de inscrição intermediado por Supabase Edge Function;
-- páginas públicas para pagamento de participantes e equipe, com Pix, crédito até 3x e integração Mercado Pago bloqueada até configurar as credenciais;
 - painel administrativo autenticado;
 - busca, filtros e acompanhamento do status de pagamento;
 - observações administrativas e exportação de dados;
@@ -86,9 +85,6 @@ A Edge Function de inscrição e as migrations do diretório \`supabase/\` preci
 
 ## Validação
 
-A preparação do Mercado Pago e os próximos passos de integração estão em
-[`docs/mercado-pago.md`](docs/mercado-pago.md).
-
 ```bash
 npm run lint
 npm run build
@@ -121,5 +117,3 @@ Desenvolvido por [Gustavo Medeiros](https://github.com/GTmaced01).
 Este projeto **não é open source**. O código é disponibilizado publicamente para demonstração e avaliação técnica de portfólio, sem concessão de licença para uso, modificação, redistribuição ou exploração comercial.
 
 Contribuições externas não são aceitas no momento. Todos os direitos reservados ao autor.
-
-As fichas `/inscricao` e `/inscricaoequipe` direcionam ao pagamento da categoria. Participante: R$180; equipe: R$90; de 1 a 20 pessoas por pedido; crédito até 3x. O backend confirma os pagamentos no admin por Webhook. A ativação exige as credenciais e os testes descritos em [docs/mercado-pago.md](docs/mercado-pago.md).

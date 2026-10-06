@@ -28,7 +28,7 @@ function allowedOrigin(origin: string) {
   }
 }
 
-function corsHeaders(request: Request): Record<string, string> {
+function corsHeaders(request: Request) {
   const origin = request.headers.get('origin') || '';
   return origin && allowedOrigin(origin)
     ? {
@@ -280,9 +280,6 @@ Deno.serve(async (request) => {
       return jsonResponse(request, { ok: true });
     }
 
-    const categoria = cleanText(form.get('categoria'), 20) || 'participante';
-    if (!['participante', 'equipe'].includes(categoria)) throw new Error('Informe uma categoria válida.');
-
     const nome = cleanText(form.get('nome'), 160, true);
     const cpfInput = cleanText(form.get('cpf'), 20, true);
     const telefone = cleanText(form.get('telefone'), 40, true);
@@ -379,7 +376,6 @@ Deno.serve(async (request) => {
     const row = {
       id: registrationId,
       nome,
-      categoria,
       cpf,
       telefone,
       email,
@@ -408,7 +404,7 @@ Deno.serve(async (request) => {
 
     const { error: insertError } = await supabase.from('inscritos').insert(row);
     if (insertError) {
-      if (insertError.code === '23505') throw new Error('Já existe uma inscrição para este CPF ou e-mail.');
+      if (insertError.code === '23505') throw new Error('Esta inscrição já foi registrada.');
       console.error('Falha ao inserir inscrição:', insertError.message);
       throw new Error('Não foi possível salvar a inscrição.');
     }

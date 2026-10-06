@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 
 type Inscrito = {
@@ -33,10 +33,7 @@ type Inscrito = {
   autorizacao_menor_url: string;
 
   pagamento_status: string;
-  categoria: "participante" | "equipe";
-  pagamento_id: string | null;
-  pagamento_origem: string | null;
-  pagamento_atualizado_em: string | null;
+  categoria?: "participante" | "equipe";
   observacao_admin: string;
   created_at: string;
 };
@@ -46,7 +43,6 @@ type FiltroStatus =
   | "pendente"
   | "pago"
   | "cancelado"
-  | "estornado"
   | "menores"
   | "aniversariantes";
 
@@ -143,19 +139,21 @@ export default function AdminPage() {
   const [inscritos, setInscritos] = useState<Inscrito[]>([]);
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState<FiltroStatus>("todos");
-  const [categoria, setCategoria] = useState("todos");
-  const [erroAtualizacao, setErroAtualizacao] = useState("");
-  const [ultimaAtualizacao, setUltimaAtualizacao] = useState("");
-  const consultaEmAndamento = useRef(false);
   const [selecionado, setSelecionado] = useState<Inscrito | null>(null);
   const [menuExportarAberto, setMenuExportarAberto] = useState(false);
   const [confirmarLogout, setConfirmarLogout] = useState(false);
 
+  async function verificarSessao() {
+    const { data } = await supabase.auth.getSession();
+
+    if (data.session) {
+      setLogado(true);
+      carregarInscritos();
+    }
+  }
+
   useEffect(() => {
-    let active = true;
-    void supabase.auth.getSession().then(({ data }) => { if (active) setLogado(Boolean(data.session)); });
-    const { data } = supabase.auth.onAuthStateChange((_event, session) => { if (active) setLogado(Boolean(session)); });
-    return () => { active = false; data.subscription.unsubscribe(); };
+    verificarSessao();
   }, []);
 
   async function recuperarSenha() {
@@ -200,6 +198,7 @@ export default function AdminPage() {
     }
 
     setLogado(true);
+    carregarInscritos();
   }
 
   async function sair() {
@@ -208,40 +207,28 @@ export default function AdminPage() {
     setConfirmarLogout(false);
     setLogado(false);
     setInscritos([]);
-    setSelecionado(null);
     setEmail("");
     setSenha("");
     setMensagemLogin("");
   }
 
-  const carregarInscritos = useCallback(async (silencioso = false) => {
-    if (consultaEmAndamento.current) return;
-    consultaEmAndamento.current = true;
-    if (!silencioso) setCarregandoInscritos(true);
+  async function carregarInscritos() {
+    setCarregandoInscritos(true);
 
-    try {
-      const { data, error } = await supabase.from("inscritos").select("*").order("created_at", { ascending: false });
-      if (error) throw error;
-      setInscritos(data || []);
-      setSelecionado(current => current ? data?.find(item => item.id === current.id) || null : null);
-      setErroAtualizacao("");
-      setUltimaAtualizacao(new Date().toLocaleTimeString("pt-BR"));
-    } catch {
-      setErroAtualizacao("Não foi possível atualizar as inscrições. Tentaremos novamente automaticamente.");
-    } finally {
-      setCarregandoInscritos(false);
-      consultaEmAndamento.current = false;
+    const { data, error } = await supabase
+      .from("inscritos")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    setCarregandoInscritos(false);
+
+    if (error) {
+      alert("Erro ao carregar inscritos: " + error.message);
+      return;
     }
-  }, []);
 
-  useEffect(() => {
-    if (!logado) return;
-    const initial = setTimeout(() => { void carregarInscritos(); }, 0);
-    const atualizar = () => { if (!document.hidden) void carregarInscritos(true); };
-    const timer = setInterval(atualizar, 15000);
-    document.addEventListener("visibilitychange", atualizar);
-    return () => { clearTimeout(initial); clearInterval(timer); document.removeEventListener("visibilitychange", atualizar); };
-  }, [logado, carregarInscritos]);
+    setInscritos(data || []);
+  }
 
   async function alterarStatus(id: string, novoStatus: string) {
     const { error } = await supabase
@@ -344,7 +331,6 @@ export default function AdminPage() {
   function textoStatus(status: string) {
     if (status === "pago" || status === "approved") return "Pago";
     if (status === "cancelado") return "Cancelado";
-    if (status === "estornado") return "Estornado / contestado";
     return "Pendente";
   }
 
@@ -357,7 +343,7 @@ export default function AdminPage() {
     return (
       item.pagamento_status !== "pago" &&
       item.pagamento_status !== "approved" &&
-      item.pagamento_status !== "cancelado" && item.pagamento_status !== "estornado"
+      item.pagamento_status !== "cancelado"
     );
   });
 
@@ -405,7 +391,7 @@ export default function AdminPage() {
         ehAniversarianteDoMes(item.data_nascimento)) ||
       filtro === statusNormalizado;
 
-    return bateBusca && bateFiltro && (categoria === "todos" || item.categoria === categoria);
+    return bateBusca && bateFiltro;
   });
 
   const pagos = listaPagos.length;
@@ -437,8 +423,6 @@ export default function AdminPage() {
       "Contato emergencia nome",
       "Contato emergencia telefone",
       "Status",
-      "Categoria",
-      "Mercado Pago ID",
       "Observacao interna",
       "Foto",
       "Comprovante",
@@ -468,8 +452,6 @@ export default function AdminPage() {
       item.contato_emergencia_nome,
       item.contato_emergencia_telefone,
       textoStatus(item.pagamento_status),
-      item.categoria === "equipe" ? "Equipe" : "Participante",
-      item.pagamento_id || "",
       item.observacao_admin,
       item.foto_url,
       item.comprovante_url,
@@ -652,7 +634,7 @@ export default function AdminPage() {
 
             <div className="flex flex-col sm:flex-row gap-3 relative z-[9999]">
               <button
-                onClick={() => carregarInscritos()}
+                onClick={carregarInscritos}
                 disabled={carregandoInscritos}
                 className="bg-black/40 border border-[#2A2A2A] hover:border-[#C79A4A] px-5 py-3 rounded-2xl font-bold transition-all disabled:opacity-60 flex items-center justify-center gap-2"
               >
@@ -841,7 +823,6 @@ export default function AdminPage() {
               >
                 Menores
               </BotaoFiltro>
-              <BotaoFiltro ativo={filtro === "estornado"} onClick={() => setFiltro("estornado")}>Estornados / contestados</BotaoFiltro>
 
               <BotaoFiltro
                 ativo={filtro === "aniversariantes"}
@@ -851,11 +832,6 @@ export default function AdminPage() {
               </BotaoFiltro>
             </div>
 
-            <label className="text-gray-300 text-sm flex items-center gap-3">Categoria
-              <select className="bg-[#090909] border border-[#444] rounded-xl p-3" value={categoria} onChange={e => setCategoria(e.target.value)}>
-                <option value="todos">Todas</option><option value="participante">Participantes</option><option value="equipe">Equipe</option>
-              </select>
-            </label>
             <p className="text-gray-500 text-sm">
               Exibindo{" "}
               <span className="text-[#C79A4A] font-bold">
@@ -874,8 +850,6 @@ export default function AdminPage() {
             Carregando inscrições...
           </div>
         )}
-
-        <p className="text-gray-400 text-sm mb-4" role="status">{erroAtualizacao || `Atualização automática a cada 15 segundos${ultimaAtualizacao ? ` · Última: ${ultimaAtualizacao}` : ""}.`}</p>
 
         <div className="bg-[#121212] border border-[#2A2A2A] rounded-[28px] overflow-hidden shadow-2xl">
           <div className="overflow-x-auto">
@@ -1070,9 +1044,7 @@ export default function AdminPage() {
                           <option value="pendente">Pendente</option>
                           <option value="pago">Pago</option>
                           <option value="cancelado">Cancelado</option>
-                          <option value="estornado">Estornado / contestado</option>
                         </select>
-                        {item.pagamento_origem === "mercado_pago" && <div className="text-xs text-gray-400 mt-2">Mercado Pago · {item.pagamento_id}</div>}
                       </td>
 
                       <td className="p-4">
@@ -1304,9 +1276,7 @@ function FichaCompleta({
                 <option value="pendente">Pendente</option>
                 <option value="pago">Pago</option>
                 <option value="cancelado">Cancelado</option>
-                <option value="estornado">Estornado / contestado</option>
               </select>
-              {item.pagamento_origem === "mercado_pago" && <p className="text-gray-400 text-sm mt-3">Confirmado pelo Mercado Pago · ID {item.pagamento_id}<br />{item.pagamento_atualizado_em && new Date(item.pagamento_atualizado_em).toLocaleString("pt-BR")}</p>}
             </div>
 
             <button
@@ -1344,7 +1314,6 @@ function FichaCompleta({
           <div className="space-y-8">
             <Secao titulo="Dados pessoais">
               <Campo label="Nome" valor={item.nome} />
-              <Campo label="Categoria" valor={item.categoria === "equipe" ? "Equipe" : "Participante"} />
               <Campo label="CPF" valor={item.cpf} />
               <Campo label="WhatsApp" valor={item.telefone} />
               <Campo label="E-mail" valor={item.email} />

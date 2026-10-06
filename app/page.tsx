@@ -52,9 +52,9 @@ const faqItems = [
       "Para pessoas que carregam dores, feridas e batalhas internas, mas ainda desejam recomeçar. O FORJADOS é um retiro misto.",
   },
   {
-    question: "Qual é o valor da pré-venda?",
+    question: "Como faço minha inscrição?",
     answer:
-      "A pré-venda está por R$135, com 25% de desconto sobre o valor de R$180, por tempo limitado. O pagamento é realizado separadamente da inscrição.",
+      "Preencha a ficha de inscrição. A organização informará os próximos passos diretamente aos inscritos.",
   },
   {
     question: "Quem organiza o FORJADOS?",
@@ -399,7 +399,7 @@ export default function Home() {
         <section id="informacoes" className="scroll-section bg-[#0F0F10] px-4 py-24 sm:px-6 sm:py-32">
           <div className="reveal-section mx-auto grid max-w-6xl items-center gap-14 lg:grid-cols-2 lg:gap-20">
             <div>
-              <span className="inline-block rounded-full border border-[#C79A4A] px-4 py-2 text-sm uppercase tracking-[0.24em] text-[#C79A4A]">Pré-venda</span>
+              <span className="inline-block rounded-full border border-[#C79A4A] px-4 py-2 text-sm uppercase tracking-[0.24em] text-[#C79A4A]">Inscrições</span>
 
               <div className="relative my-8 h-36 w-full max-w-[430px] sm:h-44"><Logo priority /></div>
 
@@ -427,23 +427,11 @@ export default function Home() {
               <div className="relative rounded-[32px] border border-[#2A2A2A] bg-[#181818]/95 p-5 shadow-2xl sm:p-8">
                 <h2 className="mb-4 text-3xl font-black uppercase leading-tight sm:text-4xl">Inscrições abertas</h2>
                 <p className="mb-6 leading-relaxed text-gray-400">
-                  Pré-venda disponível por tempo limitado. Garanta sua participação
+                  Inscrições abertas. Garanta sua participação
                   nessa experiência de cura, perdão e restauração.
                 </p>
 
                 <div className="space-y-4">
-                  <div className="rounded-2xl border border-[#2A2A2A] bg-black/40 p-5">
-                    <div className="mb-3 flex items-center justify-between gap-3">
-                      <p className="text-gray-400">Valor da pré-venda</p>
-                      <span className="rounded-full bg-[#B71C1C] px-3 py-1 text-xs font-black text-white">25% OFF</span>
-                    </div>
-                    <div className="mb-2 flex items-end gap-3">
-                      <span className="text-2xl font-black text-gray-500 line-through">R$180</span>
-                      <h3 className="text-5xl font-black leading-none text-[#C79A4A]">R$135</h3>
-                    </div>
-                    <p className="mt-2 text-gray-500">Pré-venda por tempo limitado. Pagamento realizado separadamente da inscrição.</p>
-                  </div>
-
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div className="rounded-2xl border border-[#2A2A2A] bg-[#111111] p-5">
                       <p className="text-sm text-gray-400">Modalidade</p><h3 className="mt-2 text-xl font-bold">Retiro Misto</h3>
@@ -619,4 +607,3 @@ export default function Home() {
     </main>
   );
 }
-
