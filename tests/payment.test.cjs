@@ -32,7 +32,9 @@ function harness(options = {}) {
       if (name === 'site_payment_rate_limit') return { data: options.rateAllowed !== false, error: null };
       if (name === 'site_payment_checkout_start') order.checkout_started_at = new Date().toISOString();
       if (name === 'site_payment_reconcile') {
-        Object.assign(order, { provider_id: args.p_provider, status: args.p_status });
+        Object.assign(order, order.checkout_started_at && ['rejected','cancelled'].includes(args.p_status)
+          ? { provider_id: null, status: 'prepared' }
+          : { provider_id: args.p_provider, status: args.p_status });
       }
       return { data: null, error: null };
     },
@@ -177,6 +179,21 @@ test('account balance charged by Checkout Pro is reconciled after provider verif
     headers: { 'x-signature': `ts=${timestamp},v1=${signature}`, 'x-request-id': 'balance-test' } }));
   assert.equal(response.status, 200);
   assert.equal(h.order.status, 'approved');
+});
+test('rejected card does not prevent another attempt on the same preference', async () => {
+  const provider = { id: 123, status: 'rejected' };
+  const h = harness({ webhook: true, order: { checkout_started_at: new Date().toISOString() }, provider });
+  const timestamp = String(Math.floor(Date.now() / 1000));
+  for (const [id, status] of [[123, 'rejected'], [124, 'approved']]) {
+    provider.id = id; provider.status = status;
+    const signature = createHmac('sha256', h.env.MERCADO_PAGO_WEBHOOK_SECRET)
+      .update(`id:${id};request-id:retry-test;ts:${timestamp};`).digest('hex');
+    const response = await h.handler(new Request(`https://example.supabase.co/functions/v1/mercado-pago-webhook?data.id=${id}`,
+      { method: 'POST', headers: { 'x-signature': `ts=${timestamp},v1=${signature}`, 'x-request-id': 'retry-test' } }));
+    assert.equal(response.status, 200);
+  }
+  assert.equal(h.order.status, 'approved');
+  assert.equal(h.order.provider_id, '124');
 });
 test('rate limit and duplicate identities reject bulk preparation', async () => {
   const h = harness({ rateAllowed: false });

@@ -137,8 +137,9 @@ Deno.serve(async req => {
         if (!response.ok) throw new PaymentError('Resultado ainda indisponível. Consulte novamente.', 503);
         const payments = (await response.json().catch(() => null))?.results;
         if (!Array.isArray(payments)) throw new PaymentError('Resultado ainda indisponível. Consulte novamente.', 503);
-        if (payments.length > 1) throw new PaymentError('Há mais de uma tentativa. Consulte a organização para verificar o resultado.', 409);
-        if (payments.length === 1) refreshed = await reconcile(payments[0]);
+        const active = payments.filter((payment: Record<string, unknown>) => !['rejected','cancelled'].includes(String(payment.status)));
+        if (active.length > 1) throw new PaymentError('Há mais de uma tentativa. Consulte a organização para verificar o resultado.', 409);
+        if (active.length === 1) refreshed = await reconcile(active[0]);
       }
       return json(req, { order: summary(refreshed) });
     }

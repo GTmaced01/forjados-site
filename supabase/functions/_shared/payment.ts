@@ -98,7 +98,8 @@ export async function reconcile(payment: Record<string, unknown>) {
   }
   if (!collector || Number(payment.collector_id) !== collector || payment.currency_id !== 'BRL' ||
       Math.round(Number(payment.transaction_amount) * 100) !== order.total_cents ||
-      payment.live_mode !== (mode === 'production') || (order.provider_id && order.provider_id !== id)) {
+      payment.live_mode !== (mode === 'production') ||
+      (order.provider_id && order.provider_id !== id && !['rejected','cancelled'].includes(String(payment.status)))) {
     throw new PaymentError('Pagamento não corresponde ao pedido.', 409);
   }
   const accountMoney = payment.payment_method_id === 'account_money' && payment.payment_type_id === 'account_money';

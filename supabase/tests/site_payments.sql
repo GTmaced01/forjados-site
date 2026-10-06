@@ -33,6 +33,15 @@ begin
   exception when raise_exception then if sqlerrm not like 'CHECKOUT:%' then raise; end if; end;
   perform public.site_payment_prepare(ot,h,'equipe',jsonb_build_array(jsonb_build_object('cpf','00000000003','email',t::text||'@example.invalid')));
   if not exists(select 1 from public.site_payment_order_items where order_id=oc and active) then raise exception 'issued checkout was released after 15 minutes'; end if;
+  perform public.site_payment_reconcile(oc,'900000002','rejected','2026-10-05T12:00:00Z',null,null);
+  if not exists(select 1 from public.site_payment_orders where id=oc and status='prepared' and provider_id is null) or
+     not exists(select 1 from public.site_payment_order_items where order_id=oc and active) then
+    raise exception 'rejected card released a payable checkout';
+  end if;
+  perform public.site_payment_reconcile(oc,'900000003','approved','2026-10-05T12:01:00Z',null,null);
+  if not exists(select 1 from public.inscritos where id=c and pagamento_status='pago' and pagamento_id='900000003') then
+    raise exception 'second attempt did not confirm registration';
+  end if;
   first_request:=jsonb_build_object('transaction_amount',360,'external_reference',o::text,'installments',3,'token','test-token');
   begin
     perform public.site_payment_begin(o,h,first_request||'{"transaction_amount":1}'::jsonb);
@@ -68,4 +77,4 @@ begin
      has_function_privilege('authenticated','public.site_payment_prepare(uuid,text,text,jsonb)','execute') then raise exception 'private payment access exposed'; end if;
 end $$;
 rollback;
-select 'PASS: prices, quantity, category, duplicate reservations, idempotency, max 3x, group approval, webhook replay, refund, issued-checkout reservation, abandonment, failed attempt, private access; all fixtures rolled back' as verification;
+select 'PASS: prices, quantity, category, duplicate reservations, idempotency, max 3x, group approval, webhook replay, refund, issued-checkout reservation, rejected card retry, abandonment, failed attempt, private access; all fixtures rolled back' as verification;
