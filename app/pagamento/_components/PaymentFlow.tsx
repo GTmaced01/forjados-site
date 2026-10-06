@@ -54,10 +54,9 @@ export function PaymentFlow({ audience }: { audience: PaymentAudience }) {
   const orderStatus = order?.status;
 
   useEffect(() => {
-    // A page restored from the back/forward cache keeps React refs; a prior
-    // redirect must not leave the payment button permanently disabled.
+    // A restored page keeps stale React state and refs from before checkout.
     const resume = (event: PageTransitionEvent) => {
-      if (event.persisted) { activeRequest.current = false; setBusy(false); }
+      if (event.persisted) window.location.reload();
     };
     window.addEventListener("pageshow", resume);
     return () => window.removeEventListener("pageshow", resume);
