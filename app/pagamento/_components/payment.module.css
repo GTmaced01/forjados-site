@@ -107,6 +107,10 @@
 .choiceCopy strong { display: block; font-size: .9rem; font-weight: 700; }
 .choiceCopy small { display: block; margin-top: 4px; color: var(--muted); font-size: .76rem; line-height: 1.4; }
 .choiceTag { padding: 6px 9px; border: 1px solid #574a36; border-radius: 999px; color: #dcc18f; font-size: .7rem; font-weight: 650; white-space: nowrap; }
+.redirectMethods { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.redirectMethod { display: grid; grid-template-columns: 42px minmax(0, 1fr) auto; align-items: center; gap: 12px; min-width: 0; padding: 16px; border: 1px solid #38342e; border-radius: 12px; background: #101011; }
+.checkoutButton { margin-top: 18px; font-size: .95rem; padding-block: 16px; }
+.checkoutNotice { margin: 12px 0 0; color: var(--muted); font-size: .76rem; line-height: 1.55; text-align: center; }
 .methodPrompt { margin: 16px 0 0; padding: 13px 14px; border: 1px dashed #474139; border-radius: 10px; color: #bdb7ad; font-size: .8rem; text-align: center; }
 .selectedMethodForm { margin-top: 18px; padding-top: 18px; border-top: 1px solid #302d29; }
 .selectedMethodHeader { display: flex; justify-content: space-between; gap: 18px; align-items: baseline; margin-bottom: 14px; }
@@ -173,6 +177,8 @@
   .paymentChoice, .paymentChoiceSelected { grid-template-columns: 18px 40px minmax(0, 1fr); gap: 11px; padding: 15px 13px; }
   .choiceIcon { width: 38px; height: 38px; }
   .choiceTag { display: none; }
+  .redirectMethods { grid-template-columns: 1fr; }
+  .redirectMethod { grid-template-columns: 38px minmax(0, 1fr); }
   .selectedMethodHeader { display: block; }
   .selectedMethodHeader span { display: block; margin-top: 6px; text-align: left; }
   .installmentPicker { padding: 14px 12px; }

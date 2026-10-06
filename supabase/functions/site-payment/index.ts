@@ -8,6 +8,14 @@ function safeProviderText(value: unknown) {
     .replace(/[^\p{L}\p{N}\s.,:;_()\/-]/gu, '')
     .trim().slice(0, 180);
 }
+function trustedCheckoutUrl(value: unknown) {
+  try {
+    const url = new URL(String(value || ''));
+    const host = url.hostname.toLowerCase();
+    return url.protocol === 'https:' && (host === 'mercadopago.com' || host.endsWith('.mercadopago.com') ||
+      host === 'mercadopago.com.br' || host.endsWith('.mercadopago.com.br')) ? url.toString() : null;
+  } catch { return null; }
+}
 function people(value: unknown): Person[] {
   if (!Array.isArray(value) || value.length < 1 || value.length > 20) throw new PaymentError('Selecione de 1 a 20 pessoas.');
   const result = value.map(person => {
@@ -69,6 +77,63 @@ async function payload(input: Record<string, unknown>, amount: number, orderId: 
     external_reference: orderId, notification_url: webhookUrl,
   };
 }
+async function checkoutPreference(order: { id: string; categoria: string; quantity: number; total_cents: number }) {
+  // Reuse an existing preference for this order so repeated clicks or a lost
+  // browser response cannot create multiple checkout links.
+  const search = await mp(`/checkout/preferences/search?external_reference=${encodeURIComponent(order.id)}`);
+  if (!search.ok) throw new PaymentError('Não foi possível preparar o redirecionamento agora. Tente novamente.', 503);
+  const searchBody = await search.json().catch(() => null);
+  const existing = Array.isArray(searchBody?.elements) ? searchBody.elements.find((item: Record<string, unknown>) =>
+    item?.external_reference === order.id && trustedCheckoutUrl(mode === 'test' ? item?.sandbox_init_point : item?.init_point)) : null;
+  if (existing) return trustedCheckoutUrl(mode === 'test' ? existing.sandbox_init_point : existing.init_point)!;
+
+  const base = order.categoria === 'equipe'
+    ? 'https://forjados-site-theta.vercel.app/pagamentoequipe'
+    : 'https://forjados-site-theta.vercel.app/pagamento';
+  const unitPrice = order.total_cents / 100 / order.quantity;
+  const preference = {
+    items: [{
+      id: order.categoria,
+      title: order.categoria === 'equipe' ? 'Inscrição FORJADOS - Equipe' : 'Inscrição FORJADOS - Participante',
+      description: `${order.quantity} ${order.quantity === 1 ? 'inscrição' : 'inscrições'} FORJADOS`,
+      quantity: order.quantity,
+      currency_id: 'BRL',
+      unit_price: unitPrice,
+    }],
+    external_reference: order.id,
+    notification_url: webhookUrl,
+    back_urls: {
+      success: `${base}?retorno=success`,
+      pending: `${base}?retorno=pending`,
+      failure: `${base}?retorno=failure`,
+    },
+    auto_return: 'approved',
+    payment_methods: {
+      excluded_payment_types: [{ id: 'ticket' }, { id: 'debit_card' }, { id: 'prepaid_card' }],
+      installments: 3,
+    },
+    statement_descriptor: 'FORJADOS',
+    expires: true,
+    expiration_date_from: new Date().toISOString(),
+    expiration_date_to: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+    metadata: { site_order_id: order.id, category: order.categoria },
+  };
+  const response = await mp('/checkout/preferences', {
+    method: 'POST', headers: { 'X-Idempotency-Key': order.id }, body: JSON.stringify(preference),
+  });
+  const created = await response.json().catch(() => null);
+  if (!response.ok) {
+    console.error('Mercado Pago preference rejected', {
+      status: response.status, error: safeProviderText(created?.error), message: safeProviderText(created?.message),
+    });
+    throw new PaymentError(response.status === 401
+      ? 'A organização precisa revisar as credenciais do Mercado Pago.'
+      : 'O Mercado Pago não conseguiu abrir o checkout agora. Tente novamente.', response.status === 401 ? 503 : 502);
+  }
+  const url = trustedCheckoutUrl(mode === 'test' ? created?.sandbox_init_point : created?.init_point);
+  if (!url) throw new PaymentError('O Mercado Pago não devolveu um endereço de pagamento válido.', 503);
+  return url;
+}
 
 Deno.serve(async req => {
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors(req) });
@@ -102,6 +167,12 @@ Deno.serve(async req => {
       // The signed webhook is primary; polling recovers missed notifications.
       const refreshed = order.provider_id && Date.now() - Date.parse(order.updated_at) >= 15000 ? await refresh(order) : order;
       return json(req, { order: summary(refreshed) });
+    }
+    if (input.action === 'checkout') {
+      if (order.status !== 'prepared' || order.provider_id) {
+        throw new PaymentError('Este pedido já possui uma tentativa de pagamento. Consulte o resultado ou inicie um novo pedido.', 409);
+      }
+      return json(req, { checkoutUrl: await checkoutPreference(order), order: summary(order) });
     }
     if (input.action !== 'create') throw new PaymentError('Operação inválida.');
     if (order.provider_id || !['prepared', 'submitting'].includes(order.status)) return json(req, { order: summary(await refresh(order)) });

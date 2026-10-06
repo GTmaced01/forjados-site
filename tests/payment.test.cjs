@@ -13,6 +13,7 @@ function harness(options = {}) {
     quantity: 1, total_cents: 18000, status: 'prepared', provider_id: null, provider_updated_at: null,
     provider_request: null, pix_code: null, pix_qr: null, updated_at: new Date().toISOString(), ...options.order };
   const payments = [];
+  const preferences = [];
   let handler;
   const env = { SUPABASE_URL: 'https://example.supabase.co', SUPABASE_SERVICE_ROLE_KEY: 'mock-service-role',
     MERCADO_PAGO_PUBLIC_KEY: 'mock-public', MERCADO_PAGO_ACCESS_TOKEN: 'mock-access', MERCADO_PAGO_WEBHOOK_SECRET: 'mock-signature-secret',
@@ -49,6 +50,12 @@ function harness(options = {}) {
   const fetch = async (url, init = {}) => {
     if (url.endsWith('/users/me')) return Response.json({ id: 456 });
     if (url.endsWith('/v1/payment_methods')) return Response.json([{ id: 'visa', payment_type_id: 'credit_card' }, { id: 'visa_debit', payment_type_id: 'debit_card' }]);
+    if (url.includes('/checkout/preferences/search?')) return Response.json({ elements: options.existingPreference ? [options.existingPreference] : [] });
+    if (url.endsWith('/checkout/preferences') && init.method === 'POST') {
+      preferences.push({ request: JSON.parse(init.body), key: init.headers['X-Idempotency-Key'] });
+      return Response.json({ id: 'mock-preference', init_point: 'https://www.mercadopago.com.br/checkout/v1/redirect?pref_id=mock-preference',
+        sandbox_init_point: 'https://sandbox.mercadopago.com.br/checkout/v1/redirect?pref_id=mock-preference' });
+    }
     if (init.method === 'POST') {
       payments.push({ request: JSON.parse(init.body), key: init.headers['X-Idempotency-Key'] });
       if (options.timeout) throw new Error('simulated lost response');
@@ -73,7 +80,7 @@ function harness(options = {}) {
   }
   shared = load('_shared/payment.ts');
   load(options.webhook ? 'mercado-pago-webhook/index.ts' : 'site-payment/index.ts');
-  return { order, payments, token, id, env, handler,
+  return { order, payments, preferences, token, id, env, handler,
     call: body => handler(new Request('https://example.supabase.co/functions/v1/site-payment', {
       method: 'POST', headers: { 'Content-Type': 'application/json', Origin: 'https://forjados-site-theta.vercel.app' }, body: JSON.stringify(body),
     })),
@@ -105,21 +112,38 @@ test('installments above three and debit card are refused before charging', asyn
     assert.equal(h.payments.length, 0);
   }
 });
-test('checkout uses the dedicated card Brick and accepts only provider-calculated installments up to 3x', () => {
+test('checkout redirects to Mercado Pago and leaves Pix/card selection to Checkout Pro', () => {
   const source = readFileSync(resolve(__dirname, '../app/pagamento/_components/PaymentFlow.tsx'), 'utf8');
   assert.match(source, /Cartão de crédito/);
   assert.match(source, /QR Code e código Copia e Cola/);
-  assert.match(source, /paymentMethod === "card" \? "cardPayment" : "payment"/);
-  assert.match(source, /excluded: \["debit_card", "prepaid_card"\]/);
-  assert.match(source, /minInstallments: 1, maxInstallments: 3/);
-  assert.match(source, /bankTransfer: "pix", minInstallments: 1, maxInstallments: 1/);
-  assert.match(source, /parcelas liberadas pelo Mercado Pago/);
-  assert.doesNotMatch(source, /cardInstallmentsRef/);
-  assert.match(source, /config\.mode === "test" && paymentMethod === "card"/);
-  assert.match(source, /email: "test@testuser\.com"/);
-  assert.match(source, /CPF <strong>123\.456\.789-09<\/strong>/);
-  assert.match(source, /secondarySuccessColor/);
-  assert.doesNotMatch(source, /successSecondaryColor/);
+  assert.match(source, /action: "checkout"/);
+  assert.match(source, /window\.location\.assign/);
+  assert.match(source, /Pagar \$\{money\(order\.total\)\} no Mercado Pago/);
+  assert.doesNotMatch(source, /sdk\.mercadopago\.com/);
+});
+test('Checkout Pro preference uses server total, webhook, return URLs and maximum of three installments', async () => {
+  const h = harness({ order: { quantity: 2, total_cents: 36000 } });
+  const response = await h.call({ action: 'checkout', id: h.id, token: h.token });
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.match(body.checkoutUrl, /^https:\/\/www\.mercadopago\.com\.br\/checkout/);
+  assert.equal(h.preferences.length, 1);
+  const preference = h.preferences[0];
+  assert.equal(preference.key, h.id);
+  assert.equal(preference.request.external_reference, h.id);
+  assert.equal(preference.request.items[0].quantity, 2);
+  assert.equal(preference.request.items[0].unit_price, 180);
+  assert.equal(preference.request.payment_methods.installments, 3);
+  assert.equal(preference.request.notification_url, 'https://example.supabase.co/functions/v1/mercado-pago-webhook');
+  assert.match(preference.request.back_urls.success, /pagamento\?retorno=success$/);
+});
+test('Checkout Pro reuses an existing preference for the same order', async () => {
+  const h = harness({ existingPreference: { external_reference: '10000000-0000-4000-8000-000000000001',
+    init_point: 'https://www.mercadopago.com.br/checkout/v1/redirect?pref_id=existing' } });
+  const response = await h.call({ action: 'checkout', id: h.id, token: h.token });
+  assert.equal(response.status, 200);
+  assert.match((await response.json()).checkoutUrl, /pref_id=existing/);
+  assert.equal(h.preferences.length, 0);
 });
 test('Pix uses the CPF from the linked registration when Payment Brick sends only email', async () => {
   const h = harness({ provider: { payment_method_id: 'pix', payment_type_id: 'bank_transfer', status: 'pending' } });
