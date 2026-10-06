@@ -31,7 +31,9 @@ async function checkoutPreference(order: { id: string; categoria: string; quanti
   if (mode === 'test') {
     const sellerResponse = await mp('/users/me');
     const seller = sellerResponse.ok ? await sellerResponse.json().catch(() => null) : null;
-    if (!Array.isArray(seller?.tags) || !seller.tags.includes('test_user')) {
+    // This is the seller User ID shown under this application's test credentials.
+    // The API's optional tags are not a reliable way to identify that account.
+    if (Number(seller?.id) !== 3741592554) {
       throw new PaymentError('A credencial configurada não pertence a um vendedor de teste. Revise o Access Token de teste no Supabase.', 503);
     }
   }
